@@ -1,11 +1,17 @@
 # WinIconFinder
 
-[![Build](https://github.com/<your-username>/win-icon-finder/actions/workflows/build.yml/badge.svg)](https://github.com/<your-username>/win-icon-finder/actions/workflows/build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 A WinUI 3 desktop application for browsing, sketching, and exporting the full [Fluent System Icons](https://github.com/microsoft/fluentui-system-icons) library (~1,600 icons). Find the right icon by name **or** by drawing it freehand — then copy it straight into your project.
 
 ---
+
+
+![Drawing to find icon](readme-images/Fluent-Icon-Finder-01.png)
+
+
+![Similarity Map](readme-images/Fluent-Icon-Finder-02.png)
+
 
 ## Features
 
