@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "WinIconFinder (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "WinIconFinder (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
