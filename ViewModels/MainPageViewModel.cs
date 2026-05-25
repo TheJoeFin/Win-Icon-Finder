@@ -88,7 +88,7 @@ public partial class MainViewModel : ObservableObject
             await _iconsService.LoadAsync();
             AllIcons = _iconsService.Icons;
 
-            var progress = new Progress<int>(p => InitProgress = p);
+            Progress<int> progress = new(p => InitProgress = p);
             await _matchingService.InitializeAsync(AllIcons, progress);
 
             // Grid layout is instantaneous — just pre-compute the spiral order
@@ -112,21 +112,21 @@ public partial class MainViewModel : ObservableObject
     {
         // Preserve the current selection — FilteredIcons.Clear() would otherwise null it
         // out via the TwoWay SelectedItem binding before the items are re-added.
-        var previousSelected = SelectedIcon;
+        FluentIcon? previousSelected = SelectedIcon;
 
         FilteredIcons.Clear();
-        var query = SearchQuery.Trim();
+        string query = SearchQuery.Trim();
 
-        var filtered = AllIcons
+        IEnumerable<FluentIcon> filtered = AllIcons
             .Where(i => string.IsNullOrEmpty(query) ||
                         i.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase));
 
         // Matched icons float to top by score; everything else stays alphabetical
-        var sorted = filtered
+        IOrderedEnumerable<FluentIcon> sorted = filtered
             .OrderByDescending(i => i.MatchScore)
             .ThenBy(i => i.DisplayName);
 
-        foreach (var icon in sorted)
+        foreach (FluentIcon? icon in sorted)
             FilteredIcons.Add(icon);
 
         // Restore selection so the trace overlay survives re-sorts triggered by drawing.
@@ -145,21 +145,21 @@ public partial class MainViewModel : ObservableObject
     {
         if (strokes.Count == 0) return;
 
-        var inkVector = await Task.Run(() =>
+        float[] inkVector = await Task.Run(() =>
             _matchingService.RenderInkToBitmap(strokes, canvasSize));
 
-        var matches = _matchingService.FindSimilar(inkVector, 10, TryMatchMirrors);
+        List<(FluentIcon Icon, double Score)> matches = _matchingService.FindSimilar(inkVector, 10, TryMatchMirrors);
         if (matches.Count == 0) return;
 
         // Clear previous matches
-        foreach (var icon in AllIcons)
+        foreach (FluentIcon icon in AllIcons)
         {
             icon.IsMatch = false;
             icon.MatchScore = 0;
         }
 
         // Apply new matches
-        foreach (var (icon, score) in matches)
+        foreach ((FluentIcon? icon, double score) in matches)
         {
             icon.IsMatch = true;
             icon.MatchScore = score;
@@ -169,7 +169,7 @@ public partial class MainViewModel : ObservableObject
         ApplyFilter();
 
         StatusText = $"Best match: {matches[0].Icon.DisplayName} ({matches[0].Score:P0})";
-        TopMatchesFound?.Invoke(matches.Select(m => m.Icon).ToList());
+        TopMatchesFound?.Invoke([.. matches.Select(m => m.Icon)]);
     }
 
     // -------------------------------------------------------------------------
@@ -181,7 +181,7 @@ public partial class MainViewModel : ObservableObject
     {
         RequestClearCanvas?.Invoke();
         StatusText = "Draw something to search for an icon";
-        foreach (var icon in AllIcons)
+        foreach (FluentIcon icon in AllIcons)
         {
             icon.IsMatch = false;
             icon.MatchScore = 0;

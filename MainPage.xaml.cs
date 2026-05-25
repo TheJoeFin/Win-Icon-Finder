@@ -1,6 +1,9 @@
 using Microsoft.Graphics.Canvas;
+using Microsoft.Graphics.Canvas.Geometry;
+using Microsoft.Graphics.Canvas.Text;
 using Microsoft.Graphics.Canvas.UI.Xaml;
 using Microsoft.UI;
+using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
@@ -128,7 +131,7 @@ public sealed partial class MainPage : Page
         if (_canvasSize > 0 && side != _canvasSize)
         {
             double scale = side / _canvasSize;
-            foreach (var stroke in _allStrokes)
+            foreach (List<Point> stroke in _allStrokes)
                 for (int i = 0; i < stroke.Count; i++)
                     stroke[i] = new Point(stroke[i].X * scale, stroke[i].Y * scale);
 
@@ -149,7 +152,7 @@ public sealed partial class MainPage : Page
 
     private void DrawingCanvas_Draw(CanvasControl sender, CanvasDrawEventArgs args)
     {
-        var ds = args.DrawingSession;
+        CanvasDrawingSession ds = args.DrawingSession;
 
         ds.Clear(ActualTheme == ElementTheme.Dark
             ? Color.FromArgb(255, 30, 30, 30)
@@ -160,7 +163,7 @@ public sealed partial class MainPage : Page
         if (ViewModel.SelectedIcon is { } overlayIcon)
             DrawIconOverlay(ds, sender, overlayIcon);
 
-        foreach (var stroke in _allStrokes)
+        foreach (List<Point> stroke in _allStrokes)
             DrawStroke(ds, stroke);
 
         if (_currentStroke is { Count: > 0 })
@@ -173,7 +176,7 @@ public sealed partial class MainPage : Page
         float h = (float)sender.ActualHeight;
         float side = Math.Min(w, h);
 
-        var overlayColor = ActualTheme == ElementTheme.Dark
+        Color overlayColor = ActualTheme == ElementTheme.Dark
             ? Color.FromArgb(50, 255, 255, 255)
             : Color.FromArgb(50, 0, 0, 0);
 
@@ -181,7 +184,7 @@ public sealed partial class MainPage : Page
         // canvas, centered — so the overlay shows the icon precisely as the algorithm sees it.
         float fontSize = side * (IconMatchingService.BaseFontSize / IconMatchingService.GlyphSize);
 
-        using var textFormat = new Microsoft.Graphics.Canvas.Text.CanvasTextFormat
+        using CanvasTextFormat textFormat = new()
         {
             FontFamily = IconMatchingService.FontUri,
             FontSize = fontSize,
@@ -202,7 +205,7 @@ public sealed partial class MainPage : Page
     private void DrawGuideLines(CanvasDrawingSession ds, float w, float h)
     {
         // Outer canvas boundary
-        var borderColor = Color.FromArgb(55, 140, 140, 140);
+        Color borderColor = Color.FromArgb(55, 140, 140, 140);
         ds.DrawRectangle(0.5f, 0.5f, w - 1f, h - 1f, borderColor, 1f);
 
         // Corner ticks (small L marks at each corner to reinforce the boundary)
@@ -218,8 +221,8 @@ public sealed partial class MainPage : Page
 
         // Safe-area dashed rectangle (~10 % inset, matching Fluent icon padding)
         float inset = w * 0.10f;
-        var safeRect = new Rect(inset, inset, w - inset * 2, h - inset * 2);
-        var dashStyle = new Microsoft.Graphics.Canvas.Geometry.CanvasStrokeStyle
+        Rect safeRect = new(inset, inset, w - inset * 2, h - inset * 2);
+        CanvasStrokeStyle dashStyle = new()
         {
             DashStyle = Microsoft.Graphics.Canvas.Geometry.CanvasDashStyle.Dash
         };
@@ -236,7 +239,7 @@ public sealed partial class MainPage : Page
     {
         if (pts.Count == 0) return;
 
-        var inkColor = ActualTheme == ElementTheme.Dark
+        Color inkColor = ActualTheme == ElementTheme.Dark
             ? Colors.White
             : Colors.Black;
 
@@ -246,7 +249,7 @@ public sealed partial class MainPage : Page
             return;
         }
 
-        var strokeStyle = new Microsoft.Graphics.Canvas.Geometry.CanvasStrokeStyle
+        CanvasStrokeStyle strokeStyle = new()
         {
             StartCap = Microsoft.Graphics.Canvas.Geometry.CanvasCapStyle.Round,
             EndCap = Microsoft.Graphics.Canvas.Geometry.CanvasCapStyle.Round,
@@ -280,7 +283,7 @@ public sealed partial class MainPage : Page
     {
         if (!_isDrawing || _currentStroke is null) return;
 
-        foreach (var pt in e.GetIntermediatePoints(DrawingCanvas))
+        foreach (PointerPoint? pt in e.GetIntermediatePoints(DrawingCanvas))
             _currentStroke.Add(pt.Position);
 
         DrawingCanvas.Invalidate();
@@ -341,7 +344,7 @@ public sealed partial class MainPage : Page
         if (_allStrokes.Count == 0) return;
 
         double s = _canvasSize;
-        foreach (var stroke in _allStrokes)
+        foreach (List<Point> stroke in _allStrokes)
             for (int i = 0; i < stroke.Count; i++)
             {
                 double x = stroke[i].X, y = stroke[i].Y;
@@ -384,9 +387,9 @@ public sealed partial class MainPage : Page
 
     private MenuFlyout BuildItemContextMenu()
     {
-        var flyout = new MenuFlyout();
+        MenuFlyout flyout = new();
 
-        var copyGlyph = new MenuFlyoutItem
+        MenuFlyoutItem copyGlyph = new()
         {
             Text = "Copy glyph code",
             Icon = new FontIcon { Glyph = "\uE8C8" }
@@ -394,7 +397,7 @@ public sealed partial class MainPage : Page
         AutomationProperties.SetAutomationId(copyGlyph, "CtxCopyGlyph");
         copyGlyph.Click += CopyGlyph_Click;
 
-        var copyXaml = new MenuFlyoutItem
+        MenuFlyoutItem copyXaml = new()
         {
             Text = "Copy as XAML FontIcon",
             Icon = new FontIcon { Glyph = "\uE943" }
@@ -402,7 +405,7 @@ public sealed partial class MainPage : Page
         AutomationProperties.SetAutomationId(copyXaml, "CtxCopyXaml");
         copyXaml.Click += CopyXaml_Click;
 
-        var copyPng = new MenuFlyoutItem
+        MenuFlyoutItem copyPng = new()
         {
             Text = "Copy as PNG",
             Icon = new FontIcon { Glyph = "\uEB9F" }
@@ -410,7 +413,7 @@ public sealed partial class MainPage : Page
         AutomationProperties.SetAutomationId(copyPng, "CtxCopyPng");
         copyPng.Click += CopyPng_Click;
 
-        var copySvg = new MenuFlyoutItem
+        MenuFlyoutItem copySvg = new()
         {
             Text = "Copy as SVG",
             Icon = new FontIcon { Glyph = "\uE71B" }
@@ -431,7 +434,7 @@ public sealed partial class MainPage : Page
 
     private async Task CopyGlyphWithFormatAsync()
     {
-        var dialog = new ContentDialog
+        ContentDialog dialog = new()
         {
             Title = "Glyph code format",
             Content = "Choose the format for the glyph code.",
@@ -442,7 +445,7 @@ public sealed partial class MainPage : Page
             XamlRoot = XamlRoot
         };
 
-        var result = await dialog.ShowAsync();
+        ContentDialogResult result = await dialog.ShowAsync();
         if (result == ContentDialogResult.None) return;
 
         ViewModel.CopyAsGlyphCommand.Execute(result == ContentDialogResult.Secondary);
@@ -456,7 +459,7 @@ public sealed partial class MainPage : Page
 
     private async Task CopyPngWithColorChoiceAsync()
     {
-        var dialog = new ContentDialog
+        ContentDialog dialog = new()
         {
             Title = "PNG icon color",
             Content = "Choose the icon color (on a transparent background).",
@@ -467,7 +470,7 @@ public sealed partial class MainPage : Page
             XamlRoot = XamlRoot
         };
 
-        var result = await dialog.ShowAsync();
+        ContentDialogResult result = await dialog.ShowAsync();
         if (result == ContentDialogResult.None) return;
 
         await ViewModel.CopyAsPngCommand.ExecuteAsync(result == ContentDialogResult.Primary);
@@ -502,11 +505,11 @@ public sealed partial class MainPage : Page
 
     private void ExploreInMap_Click(object sender, RoutedEventArgs e)
     {
-        var icon = ViewModel.SelectedIcon;
+        FluentIcon? icon = ViewModel.SelectedIcon;
         if (icon == null || !ViewModel.LayoutService.IsReady) return;
 
         // Find this icon's position in the current layout
-        var positions = ViewModel.LayoutService.Positions;
+        IReadOnlyList<LayoutPosition> positions = ViewModel.LayoutService.Positions;
         int posIdx = -1;
         for (int i = 0; i < positions.Count; i++)
         {
@@ -526,7 +529,7 @@ public sealed partial class MainPage : Page
 
     private void MapCanvas_Draw(CanvasControl sender, CanvasDrawEventArgs args)
     {
-        var ds = args.DrawingSession;
+        CanvasDrawingSession ds = args.DrawingSession;
         float W = (float)sender.ActualWidth;
         float H = (float)sender.ActualHeight;
         bool isDark = ActualTheme == ElementTheme.Dark;
@@ -538,7 +541,7 @@ public sealed partial class MainPage : Page
         // Show loading message if vectors aren't ready yet
         if (!ViewModel.LayoutService.IsReady)
         {
-            using var loadFmt = new Microsoft.Graphics.Canvas.Text.CanvasTextFormat
+            using CanvasTextFormat loadFmt = new()
             {
                 FontSize = 16,
                 HorizontalAlignment = Microsoft.Graphics.Canvas.Text.CanvasHorizontalAlignment.Center,
@@ -549,14 +552,14 @@ public sealed partial class MainPage : Page
             return;
         }
 
-        var positions = ViewModel.LayoutService.Positions;
+        IReadOnlyList<LayoutPosition> positions = ViewModel.LayoutService.Positions;
         if (positions.Count == 0) return;
 
         bool hasPivot = _mapPivotIconIdx >= 0 && _mapSimilarities != null;
         float cellPx = MapCellSize * _mapScale;    // full cell size in screen pixels
         float fontSize = cellPx * 0.70f;
 
-        var baseColor = isDark
+        Color baseColor = isDark
             ? Windows.UI.Color.FromArgb(200, 220, 220, 220)
             : Windows.UI.Color.FromArgb(200, 40, 40, 40);
         byte accentR = isDark ? (byte)100 : (byte)0;
@@ -566,7 +569,7 @@ public sealed partial class MainPage : Page
         // Clamp font so icons don't become invisible when zoomed out
         float drawFontSize = Math.Max(fontSize, 4f);
 
-        using var tf = new Microsoft.Graphics.Canvas.Text.CanvasTextFormat
+        using CanvasTextFormat tf = new()
         {
             FontFamily = IconMatchingService.FontUri,
             FontSize = drawFontSize,
@@ -575,7 +578,7 @@ public sealed partial class MainPage : Page
             WordWrapping = Microsoft.Graphics.Canvas.Text.CanvasWordWrapping.NoWrap
         };
 
-        using var tfPivot = new Microsoft.Graphics.Canvas.Text.CanvasTextFormat
+        using CanvasTextFormat tfPivot = new()
         {
             FontFamily = IconMatchingService.FontUri,
             FontSize = Math.Max(drawFontSize * 1.35f, 6f),
@@ -588,8 +591,8 @@ public sealed partial class MainPage : Page
 
         for (int i = 0; i < positions.Count; i++)
         {
-            var pos = positions[i];
-            var (sx, sy) = MapToScreen(pos.GX, pos.GY, W, H);
+            LayoutPosition pos = positions[i];
+            (float sx, float sy) = MapToScreen(pos.GX, pos.GY, W, H);
 
             // Cull icons outside visible area
             if (sx < -halfCell * 2 || sx > W + halfCell * 2 ||
@@ -643,13 +646,13 @@ public sealed partial class MainPage : Page
         // Hover tooltip label
         if (_mapHoveredIndex >= 0 && _mapHoveredIndex < positions.Count)
         {
-            var hovPos = positions[_mapHoveredIndex];
-            var (hx, hy) = MapToScreen(hovPos.GX, hovPos.GY, W, H);
+            LayoutPosition hovPos = positions[_mapHoveredIndex];
+            (float hx, float hy) = MapToScreen(hovPos.GX, hovPos.GY, W, H);
             string label = hovPos.Icon.DisplayName;
             if (hasPivot && _mapSimilarities != null)
                 label += $"  {_mapSimilarities[hovPos.Index]:P0}";
 
-            using var labelFmt = new Microsoft.Graphics.Canvas.Text.CanvasTextFormat
+            using CanvasTextFormat labelFmt = new()
             {
                 FontSize = 11,
                 HorizontalAlignment = Microsoft.Graphics.Canvas.Text.CanvasHorizontalAlignment.Center,
@@ -683,7 +686,7 @@ public sealed partial class MainPage : Page
     private int MapHitTest(float mx, float my, float W, float H)
     {
         if (!ViewModel.LayoutService.IsReady) return -1;
-        var (gx, gy) = ScreenToCell(mx, my, W, H);
+        (int gx, int gy) = ScreenToCell(mx, my, W, H);
         return ViewModel.LayoutService.CellIndex.TryGetValue((gx, gy), out int idx) ? idx : -1;
     }
 
@@ -692,7 +695,7 @@ public sealed partial class MainPage : Page
     {
         if (!ViewModel.LayoutService.IsReady) return;
         int maxExt = 0;
-        foreach (var p in ViewModel.LayoutService.Positions)
+        foreach (LayoutPosition p in ViewModel.LayoutService.Positions)
         {
             int e = Math.Max(Math.Abs(p.GX), Math.Abs(p.GY));
             if (e > maxExt) maxExt = e;
@@ -713,13 +716,13 @@ public sealed partial class MainPage : Page
     private void MapCanvas_PointerPressed(object sender, PointerRoutedEventArgs e)
     {
         MapCanvas.CapturePointer(e.Pointer);
-        var pt = e.GetCurrentPoint(MapCanvas).Position;
+        Point pt = e.GetCurrentPoint(MapCanvas).Position;
         _mapActivePointers[e.Pointer.PointerId] = pt;
 
         if (_mapActivePointers.Count >= 2)
         {
             // Second finger down — enter pinch mode, record start state
-            var pts = _mapActivePointers.Values.ToArray();
+            Point[] pts = _mapActivePointers.Values.ToArray();
             _mapPinchStartDist = MapPtrDistance(pts[0], pts[1]);
             _mapPinchStartMid = MapPtrMidpoint(pts[0], pts[1]);
             _mapPinchStartScale = _mapScale;
@@ -745,7 +748,7 @@ public sealed partial class MainPage : Page
         if (!ViewModel.LayoutService.IsReady) return;
         float W = (float)MapCanvas.ActualWidth;
         float H = (float)MapCanvas.ActualHeight;
-        var pt = e.GetCurrentPoint(MapCanvas).Position;
+        Point pt = e.GetCurrentPoint(MapCanvas).Position;
 
         if (_mapActivePointers.ContainsKey(e.Pointer.PointerId))
             _mapActivePointers[e.Pointer.PointerId] = pt;
@@ -755,9 +758,9 @@ public sealed partial class MainPage : Page
             // Two-finger pinch: zoom around midpoint + allow midpoint translation
             if (_mapPinchStartDist > 0)
             {
-                var pts = _mapActivePointers.Values.ToArray();
+                Point[] pts = _mapActivePointers.Values.ToArray();
                 double dist = MapPtrDistance(pts[0], pts[1]);
-                var mid = MapPtrMidpoint(pts[0], pts[1]);
+                Point mid = MapPtrMidpoint(pts[0], pts[1]);
 
                 float factor = (float)(dist / _mapPinchStartDist);
                 float newScale = Math.Clamp(_mapPinchStartScale * factor, 0.08f, 20f);
@@ -809,7 +812,7 @@ public sealed partial class MainPage : Page
         if (_mapActivePointers.Count == 1)
         {
             // One finger remains after pinch — re-arm single-finger drag from its current position
-            var remainingPt = _mapActivePointers.Values.First();
+            Point remainingPt = _mapActivePointers.Values.First();
             _mapIsDragging = true;
             _mapDragHasMoved = false;
             _mapDragStartPointer = remainingPt;
@@ -857,7 +860,7 @@ public sealed partial class MainPage : Page
 
     private void MapCanvas_PointerWheelChanged(object sender, PointerRoutedEventArgs e)
     {
-        var pt = e.GetCurrentPoint(MapCanvas);
+        PointerPoint pt = e.GetCurrentPoint(MapCanvas);
         float mx = (float)pt.Position.X;
         float my = (float)pt.Position.Y;
         float factor = pt.Properties.MouseWheelDelta > 0 ? 1.12f : 1f / 1.12f;
@@ -884,10 +887,10 @@ public sealed partial class MainPage : Page
     private void SetMapPivot(int positionIndex)
     {
         if (!ViewModel.LayoutService.IsReady) return;
-        var positions = ViewModel.LayoutService.Positions;
+        IReadOnlyList<LayoutPosition> positions = ViewModel.LayoutService.Positions;
         if (positionIndex < 0 || positionIndex >= positions.Count) return;
 
-        var pos = positions[positionIndex];
+        LayoutPosition pos = positions[positionIndex];
         int iconIdx = pos.Index;
 
         // Compute cosine similarities for this pivot

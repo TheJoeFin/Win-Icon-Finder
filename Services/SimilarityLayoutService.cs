@@ -56,7 +56,7 @@ public sealed class SimilarityLayoutService
     /// </summary>
     public void SetPivotLayout(int pivotIconIndex, float[] similarities)
     {
-        var sorted = Enumerable.Range(0, _icons.Length)
+        int[] sorted = Enumerable.Range(0, _icons.Length)
             .OrderByDescending(i => i == pivotIconIndex ? float.MaxValue : similarities[i])
             .ToArray();
         RebuildPositions(sorted);
@@ -64,13 +64,13 @@ public sealed class SimilarityLayoutService
 
     private void RebuildPositions(int[] sortedIconIndices)
     {
-        var positions = new LayoutPosition[sortedIconIndices.Length];
-        var lookup = new Dictionary<(int, int), int>(sortedIconIndices.Length);
+        LayoutPosition[] positions = new LayoutPosition[sortedIconIndices.Length];
+        Dictionary<(int, int), int> lookup = new(sortedIconIndices.Length);
 
         for (int spiralIdx = 0; spiralIdx < sortedIconIndices.Length; spiralIdx++)
         {
             int iconIdx = sortedIconIndices[spiralIdx];
-            var (gx, gy) = _spiralOrder[spiralIdx];
+            (int gx, int gy) = _spiralOrder[spiralIdx];
             positions[spiralIdx] = new LayoutPosition(_icons[iconIdx], iconIdx, gx, gy);
             lookup[(gx, gy)] = spiralIdx;
         }
@@ -89,15 +89,15 @@ public sealed class SimilarityLayoutService
     /// </summary>
     public float[] ComputeSimilarities(float[][] vectors, int pivotIndex)
     {
-        var pivot = vectors[pivotIndex];
+        float[] pivot = vectors[pivotIndex];
         int n = vectors.Length;
         int d = pivot.Length;
-        var scores = new float[n];
+        float[] scores = new float[n];
 
         for (int i = 0; i < n; i++)
         {
             float dot = 0f;
-            var v = vectors[i];
+            float[] v = vectors[i];
             for (int j = 0; j < d; j++)
                 dot += pivot[j] * v[j];
             scores[i] = MathF.Max(0f, dot);
@@ -117,7 +117,7 @@ public sealed class SimilarityLayoutService
     /// </summary>
     private static (int gx, int gy)[] GenerateSpiralOrder(int count)
     {
-        var result = new (int gx, int gy)[count];
+        (int gx, int gy)[] result = new (int gx, int gy)[count];
         if (count == 0) return result;
 
         result[0] = (0, 0);

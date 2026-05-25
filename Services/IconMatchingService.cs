@@ -7,6 +7,7 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
 using Windows.Foundation;
+using Windows.Storage.Streams;
 using WinIconFinder.Models;
 
 namespace WinIconFinder.Services;
@@ -16,7 +17,7 @@ namespace WinIconFinder.Services;
 /// L2-normalises them, then finds cosine-similar icons for a given ink sketch.
 /// Pre-rendered vectors are cached to disk and reused on subsequent launches.
 /// </summary>
-public class IconMatchingService
+public partial class IconMatchingService
 {
     public const int GlyphSize = 64;
     public const float BaseFontSize = 52f;
@@ -60,11 +61,11 @@ public class IconMatchingService
 
         // Capture device + cache path on the UI thread before going background.
         _device = CanvasDevice.GetSharedDevice();
-        var device = _device;
-        var cachePath = Path.Combine(
+        CanvasDevice device = _device;
+        string cachePath = Path.Combine(
             Windows.Storage.ApplicationData.Current.LocalCacheFolder.Path,
             CacheFileName);
-        var fingerprint = ComputeFingerprint(icons);
+        int fingerprint = ComputeFingerprint(icons);
 
         await Task.Run(() =>
         {
@@ -103,10 +104,10 @@ public class IconMatchingService
     /// </summary>
     private static int ComputeFingerprint(IReadOnlyList<FluentIcon> icons)
     {
-        var hc = new HashCode();
+        HashCode hc = new();
         hc.Add(GlyphSize);
         hc.Add(BaseFontSize);
-        foreach (var icon in icons)
+        foreach (FluentIcon icon in icons)
             hc.Add(icon.Codepoint);
         return hc.ToHashCode();
     }
@@ -125,9 +126,9 @@ public class IconMatchingService
         if (!File.Exists(path)) return false;
         try
         {
-            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read,
+            using FileStream fs = new(path, FileMode.Open, FileAccess.Read, FileShare.Read,
                 bufferSize: 1 << 16, useAsync: false);
-            using var br = new BinaryReader(fs);
+            using BinaryReader br = new(fs);
 
             if (!br.ReadBytes(4).SequenceEqual(CacheMagic)) return false;
             if (br.ReadInt32() != CacheFormatVersion) return false;
@@ -137,11 +138,11 @@ public class IconMatchingService
             int vectorLen = br.ReadInt32();
             if (iconCount != expectedCount || vectorLen != GlyphSize * GlyphSize) return false;
 
-            var vectors = new float[iconCount][];
+            float[][] vectors = new float[iconCount][];
             for (int i = 0; i < iconCount; i++)
             {
-                var vec = new float[vectorLen];
-                var span = MemoryMarshal.AsBytes(vec.AsSpan());
+                float[] vec = new float[vectorLen];
+                Span<byte> span = MemoryMarshal.AsBytes(vec.AsSpan());
                 if (fs.Read(span) != span.Length) return false;
                 vectors[i] = vec;
             }
@@ -162,9 +163,9 @@ public class IconMatchingService
         if (_glyphVectors == null) return;
         try
         {
-            using var fs = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None,
+            using FileStream fs = new(path, FileMode.Create, FileAccess.Write, FileShare.None,
                 bufferSize: 1 << 16, useAsync: false);
-            using var bw = new BinaryWriter(fs);
+            using BinaryWriter bw = new(fs);
 
             bw.Write(CacheMagic);
             bw.Write(CacheFormatVersion);
@@ -172,7 +173,7 @@ public class IconMatchingService
             bw.Write(_glyphVectors.Length);
             bw.Write(GlyphSize * GlyphSize);
 
-            foreach (var vec in _glyphVectors)
+            foreach (float[] vec in _glyphVectors)
                 fs.Write(MemoryMarshal.AsBytes(vec.AsSpan()));
         }
         catch
@@ -193,11 +194,11 @@ public class IconMatchingService
 
     private static float[] RenderGlyphToVector(CanvasDevice device, FluentIcon icon)
     {
-        using var rt = new CanvasRenderTarget(device, GlyphSize, GlyphSize, 96f);
-        using (var ds = rt.CreateDrawingSession())
+        using CanvasRenderTarget rt = new(device, GlyphSize, GlyphSize, 96f);
+        using (CanvasDrawingSession ds = rt.CreateDrawingSession())
         {
             ds.Clear(Colors.Black);
-            using var tf = new CanvasTextFormat
+            using CanvasTextFormat tf = new()
             {
                 FontFamily = FontUri,
                 FontSize = BaseFontSize,
@@ -226,9 +227,9 @@ public class IconMatchingService
         IReadOnlyList<IReadOnlyList<Windows.Foundation.Point>> strokes,
         Windows.Foundation.Size canvasSize)
     {
-        var device = _device ?? CanvasDevice.GetSharedDevice();
-        using var rt = new CanvasRenderTarget(device, GlyphSize, GlyphSize, 96f);
-        using (var ds = rt.CreateDrawingSession())
+        CanvasDevice device = _device ?? CanvasDevice.GetSharedDevice();
+        using CanvasRenderTarget rt = new(device, GlyphSize, GlyphSize, 96f);
+        using (CanvasDrawingSession ds = rt.CreateDrawingSession())
         {
             ds.Clear(Colors.Black);
 
@@ -248,9 +249,9 @@ public class IconMatchingService
         float scale = (float)Math.Min(scaleX, scaleY);
         float strokeWidth = Math.Max(1.5f, 3f * scale);
 
-        foreach (var stroke in strokes)
+        foreach (IReadOnlyList<Point> stroke in strokes)
         {
-            var pts = stroke;
+            IReadOnlyList<Point> pts = stroke;
             if (pts.Count == 0) continue;
 
             if (pts.Count == 1)
@@ -289,10 +290,10 @@ public class IconMatchingService
         float[]? inkH = tryMirrors ? FlipHorizontal(inkVector) : null;
         float[]? inkV = tryMirrors ? FlipVertical(inkVector) : null;
 
-        var results = new (FluentIcon Icon, double Score)[_icons.Count];
+        (FluentIcon Icon, double Score)[] results = new (FluentIcon Icon, double Score)[_icons.Count];
         for (int i = 0; i < _icons.Count; i++)
         {
-            var gv = _glyphVectors[i];
+            float[] gv = _glyphVectors[i];
             int len = Math.Min(inkVector.Length, gv.Length);
 
             double dot = 0.0;
@@ -320,7 +321,7 @@ public class IconMatchingService
     /// <summary>Flips a GlyphSize×GlyphSize pixel vector left-to-right.</summary>
     private static float[] FlipHorizontal(float[] vector)
     {
-        var result = new float[vector.Length];
+        float[] result = new float[vector.Length];
         for (int row = 0; row < GlyphSize; row++)
             for (int col = 0; col < GlyphSize; col++)
                 result[row * GlyphSize + col] = vector[row * GlyphSize + (GlyphSize - 1 - col)];
@@ -330,7 +331,7 @@ public class IconMatchingService
     /// <summary>Flips a GlyphSize×GlyphSize pixel vector top-to-bottom.</summary>
     private static float[] FlipVertical(float[] vector)
     {
-        var result = new float[vector.Length];
+        float[] result = new float[vector.Length];
         for (int row = 0; row < GlyphSize; row++)
             for (int col = 0; col < GlyphSize; col++)
                 result[row * GlyphSize + col] = vector[(GlyphSize - 1 - row) * GlyphSize + col];
@@ -346,12 +347,12 @@ public class IconMatchingService
     /// </summary>
     public async Task<byte[]> RenderGlyphToPngAsync(FluentIcon icon, int size = 256, bool useBlack = true)
     {
-        var device = _device ?? CanvasDevice.GetSharedDevice();
-        using var rt = new CanvasRenderTarget(device, size, size, 96f);
-        using (var ds = rt.CreateDrawingSession())
+        CanvasDevice device = _device ?? CanvasDevice.GetSharedDevice();
+        using CanvasRenderTarget rt = new(device, size, size, 96f);
+        using (CanvasDrawingSession ds = rt.CreateDrawingSession())
         {
             ds.Clear(Colors.Transparent);
-            using var tf = new CanvasTextFormat
+            using CanvasTextFormat tf = new()
             {
                 FontFamily = FontUri,
                 FontSize = size * 0.8f,
@@ -365,13 +366,13 @@ public class IconMatchingService
                 tf);
         }
 
-        using var stream = new Windows.Storage.Streams.InMemoryRandomAccessStream();
+        using InMemoryRandomAccessStream stream = new();
         await rt.SaveAsync(stream, CanvasBitmapFileFormat.Png);
         stream.Seek(0);
 
-        var reader = new Windows.Storage.Streams.DataReader(stream.GetInputStreamAt(0));
+        DataReader reader = new(stream.GetInputStreamAt(0));
         await reader.LoadAsync((uint)stream.Size);
-        var bytes = new byte[stream.Size];
+        byte[] bytes = new byte[stream.Size];
         reader.ReadBytes(bytes);
         return bytes;
     }
@@ -388,23 +389,23 @@ public class IconMatchingService
     public string GetGlyphSvg(FluentIcon icon)
     {
         const float layoutSize = 512f;
-        var device = _device ?? CanvasDevice.GetSharedDevice();
+        CanvasDevice device = _device ?? CanvasDevice.GetSharedDevice();
 
-        using var tf = new CanvasTextFormat
+        using CanvasTextFormat tf = new()
         {
             FontFamily = FontUri,
             FontSize = layoutSize * 0.75f,
             HorizontalAlignment = CanvasHorizontalAlignment.Center,
             VerticalAlignment = CanvasVerticalAlignment.Center
         };
-        using var tl = new CanvasTextLayout(device, icon.GlyphChar.ToString(), tf, layoutSize, layoutSize);
-        using var geometry = CanvasGeometry.CreateText(tl);
+        using CanvasTextLayout tl = new(device, icon.GlyphChar.ToString(), tf, layoutSize, layoutSize);
+        using CanvasGeometry geometry = CanvasGeometry.CreateText(tl);
 
-        var bounds = geometry.ComputeBounds();
-        var receiver = new SvgPathReceiver();
+        Rect bounds = geometry.ComputeBounds();
+        SvgPathReceiver receiver = new();
         geometry.SendPathTo(receiver);
 
-        var vb = string.Create(CultureInfo.InvariantCulture,
+        string vb = string.Create(CultureInfo.InvariantCulture,
             $"{bounds.X:F3} {bounds.Y:F3} {bounds.Width:F3} {bounds.Height:F3}");
 
         return $"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="{vb}"><path fill="currentColor" d="{receiver}"/></svg>""";
@@ -417,7 +418,7 @@ public class IconMatchingService
     private static float[] BgraToNormalizedGrayscale(byte[] bgra)
     {
         int pixelCount = bgra.Length / 4;
-        var result = new float[pixelCount];
+        float[] result = new float[pixelCount];
 
         for (int i = 0; i < pixelCount; i++)
         {
@@ -450,7 +451,7 @@ public class IconMatchingService
     /// Implements <see cref="ICanvasPathReceiver"/> to serialize a Win2D
     /// <see cref="CanvasGeometry"/> into an SVG path <c>d</c> attribute string.
     /// </summary>
-    private sealed class SvgPathReceiver : ICanvasPathReceiver
+    private sealed partial class SvgPathReceiver : ICanvasPathReceiver
     {
         private readonly StringBuilder _sb = new();
 
