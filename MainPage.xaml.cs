@@ -659,9 +659,12 @@ public sealed partial class MainPage : Page
                 VerticalAlignment = Microsoft.Graphics.Canvas.Text.CanvasVerticalAlignment.Top
             };
 
-            float lx = Math.Clamp(hx, 60, W - 60);
+            float textWidth = label.Length * labelFmt.FontSize * 0.62f;
+            float boxWidth = Math.Clamp(textWidth + 16f, 120f, Math.Max(120f, W - 16f));
+            float halfBox = boxWidth / 2f;
+            float lx = Math.Clamp(hx, halfBox + 4f, W - halfBox - 4f);
             float ly = Math.Min(hy + halfCell + 3f, H - 18);
-            ds.FillRoundedRectangle(lx - 60, ly - 1, 120, 16, 3, 3,
+            ds.FillRoundedRectangle(lx - halfBox, ly - 1, boxWidth, 16, 3, 3,
                 Windows.UI.Color.FromArgb(160, 20, 20, 20));
             ds.DrawText(label, lx, ly,
                 Windows.UI.Color.FromArgb(230, 240, 240, 240), labelFmt);
