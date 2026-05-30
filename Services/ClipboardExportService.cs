@@ -13,20 +13,41 @@ public partial class ClipboardExportService
     /// <summary>Copies the glyph code. C# format: \uXXXX, XAML format: &amp;#xXXXX;</summary>
     public void CopyGlyphCode(FluentIcon icon, bool useXaml)
     {
-        DataPackage dp = new();
-        dp.SetText(useXaml
+        SetText(useXaml
             ? $"&#x{icon.Codepoint:X4};"
             : $"\\u{icon.Codepoint:X4}");
-        Clipboard.SetContent(dp);
     }
 
-    /// <summary>Copies a WinUI 3 FontIcon XAML snippet using SymbolThemeFontFamily.</summary>
+    public void CopyGlyphCodes(IEnumerable<FluentIcon> icons, bool useXaml)
+    {
+        string text = string.Join(
+            Environment.NewLine,
+            icons
+                .OrderBy(icon => icon.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .Select(icon => useXaml
+                    ? $"&#x{icon.Codepoint:X4};"
+                    : $"\\u{icon.Codepoint:X4}"));
+
+        SetText(text);
+    }
+
+    /// <summary>Copies a WinUI 3 FontIcon XAML snippet using the bundled Fluent icon font.</summary>
     public void CopyXamlFontIcon(FluentIcon icon)
     {
-        DataPackage dp = new();
-        dp.SetText(
-            $$"""<FontIcon FontFamily="{ThemeResource SymbolThemeFontFamily}" Glyph="&#x{{icon.Codepoint:X4}};" />""");
-        Clipboard.SetContent(dp);
+        SetText(
+            $$"""<FontIcon FontFamily="{{IconMatchingService.FontUri}}" Glyph="&#x{{icon.Codepoint:X4}};" />""");
+    }
+
+    public void CopyXamlFontIcons(IEnumerable<FluentIcon> icons)
+    {
+        string text = string.Join(
+            Environment.NewLine,
+            icons
+                .OrderBy(icon => icon.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .Select(icon =>
+                    $$"""<FontIcon FontFamily="{{IconMatchingService.FontUri}}" Glyph="&#x{{icon.Codepoint:X4}};" />"""));
+
+        SetText(text);
     }
 
     /// <summary>Renders the icon to 256×256 PNG and copies it as a bitmap.</summary>
@@ -51,8 +72,13 @@ public partial class ClipboardExportService
     public void CopySvg(FluentIcon icon, IconMatchingService matchingService)
     {
         string svg = matchingService.GetGlyphSvg(icon);
+        SetText(svg);
+    }
+
+    private static void SetText(string text)
+    {
         DataPackage dp = new();
-        dp.SetText(svg);
+        dp.SetText(text);
         Clipboard.SetContent(dp);
     }
 }

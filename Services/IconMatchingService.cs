@@ -27,9 +27,10 @@ public partial class IconMatchingService
         "ms-appx:///Assets/FluentSystemIcons-Regular.ttf#FluentSystemIcons-Regular";
 
     // ---- cache ----
-    // Bump CacheFormatVersion whenever GlyphSize, BaseFontSize, or rendering
-    // logic changes so stale cache files are automatically invalidated.
-    private const int CacheFormatVersion = 1;
+    // Bump CacheFormatVersion whenever GlyphSize, BaseFontSize, rendering
+    // logic, or cache validation semantics change so stale cache files are
+    // automatically invalidated.
+    private const int CacheFormatVersion = 2;
     private const string CacheFileName = "icon_vectors.bin";
     private static readonly byte[] CacheMagic = [(byte)'W', (byte)'I', (byte)'N', (byte)'F'];
 
@@ -104,12 +105,48 @@ public partial class IconMatchingService
     /// </summary>
     private static int ComputeFingerprint(IReadOnlyList<FluentIcon> icons)
     {
-        HashCode hc = new();
-        hc.Add(GlyphSize);
-        hc.Add(BaseFontSize);
-        foreach (FluentIcon icon in icons)
-            hc.Add(icon.Codepoint);
-        return hc.ToHashCode();
+        unchecked
+        {
+            // System.HashCode is salted per process, so it cannot be used for a
+            // disk cache key that needs to stay stable across app launches.
+            uint hash = 2166136261;
+            hash = CombineFingerprint(hash, GlyphSize);
+            hash = CombineFingerprint(hash, BitConverter.SingleToInt32Bits(BaseFontSize));
+            hash = CombineFingerprint(hash, icons.Count);
+
+            foreach (FluentIcon icon in icons)
+            {
+                hash = CombineFingerprint(hash, icon.Name);
+                hash = CombineFingerprint(hash, (int)icon.Codepoint);
+            }
+
+            return (int)hash;
+        }
+    }
+
+    private static uint CombineFingerprint(uint hash, int value)
+    {
+        unchecked
+        {
+            hash ^= (uint)value;
+            hash *= 16777619;
+            return hash;
+        }
+    }
+
+    private static uint CombineFingerprint(uint hash, string value)
+    {
+        unchecked
+        {
+            hash = CombineFingerprint(hash, value.Length);
+            foreach (char ch in value)
+            {
+                hash ^= ch;
+                hash *= 16777619;
+            }
+
+            return hash;
+        }
     }
 
     /// <summary>
