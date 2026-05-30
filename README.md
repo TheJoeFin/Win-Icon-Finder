@@ -50,6 +50,23 @@ Hovering over an icon shows its name in a tooltip. After selecting a pivot, the 
 
 You can also jump directly from a search result to its map neighbourhood with the **Explore in Map** button in the Search & Draw toolbar.
 
+### Collections
+
+Switch to the **Collections** tab to manage saved icon groups. The fast path is a one-click **favorite** action on every icon row, which adds or removes that icon from the built-in **Default** collection. The adjacent **more** button and the right-click context menu both let you add or remove the same icon from any number of named collections without leaving the search results.
+
+Collections workflow:
+
+| Action | Result |
+|---|---|
+| Favorite an icon | Toggles membership in the non-removable **Default** collection |
+| More / right-click → collection name | Adds or removes that icon from a named collection |
+| Collections → New collection | Creates an empty collection |
+| Collections → Save to new collection | Creates a new collection from the current multi-selection |
+| Collections → Add to collection | Adds the current multi-selection to an existing collection |
+| Collections → Remove from current | Removes the current multi-selection from the active collection |
+
+The Collections view shows all saved groups on the left and the active collection's icons on the right, with multi-select checkboxes for batch actions.
+
 ### Export formats
 
 Once an icon is selected, four one-click copy buttons appear:
@@ -62,6 +79,16 @@ Once an icon is selected, four one-click copy buttons appear:
 | ✦ SVG | Scalable vector SVG with real path data extracted from the font outline, using `fill="currentColor"` for theme-awareness |
 
 Right-clicking any icon in the list also opens a context menu with the same export options.
+
+Bulk export from **Collections** uses the same rendering pipeline:
+
+| Bulk action | Output |
+|---|---|
+| Copy glyph codes | Newline-delimited `\uXXXX` values on the clipboard |
+| Copy glyph codes for XAML | Newline-delimited `&#xXXXX;` values on the clipboard |
+| Copy XAML FontIcons | One `<FontIcon>` snippet per selected icon on the clipboard |
+| Export PNG files | One `256 × 256` PNG per selected icon in a picked folder |
+| Export SVG files | One vector SVG per selected icon in a picked folder |
 
 ---
 
@@ -90,19 +117,24 @@ SVG export uses `CanvasGeometry.CreateText` + `ICanvasPathReceiver` to extract r
 ```
 WinIconFinder/
 ├── Models/
-│   └── FluentIcon.cs          # Icon data model (name, codepoint, match state)
+│   ├── FluentIcon.cs              # Icon data model (name, codepoint, match + collection state)
+│   ├── IconCollection.cs          # UI-facing collection summary model
+│   ├── IconCollectionRecord.cs    # Persisted collection record (name + icon names)
+│   └── IconCollectionsStore.cs    # Root JSON payload for saved collections
 ├── Services/
-│   ├── FluentIconsService.cs  # Loads icons.json, deduplicates variants
-│   ├── IconMatchingService.cs # Win2D rendering, cosine similarity search, cache, PNG/SVG export
+│   ├── FluentIconsService.cs      # Loads icons.json, deduplicates variants
+│   ├── IconMatchingService.cs     # Win2D rendering, cosine similarity search, cache, PNG/SVG export
 │   ├── ClipboardExportService.cs  # Copies glyph code, XAML, PNG, SVG to clipboard
+│   ├── IconCollectionsService.cs  # Persists Default + named collections in app-local JSON
+│   ├── CollectionExportService.cs # Writes batch PNG/SVG exports to a picked folder
 │   └── SimilarityLayoutService.cs # Spiral grid layout for the similarity map
 ├── ViewModels/
-│   └── MainPageViewModel.cs   # MVVM glue (CommunityToolkit.Mvvm), commands
-├── MainPage.xaml / .cs        # Main UI — search panel, drawing canvas, similarity map
-├── MainWindow.xaml / .cs      # App window host
+│   └── MainPageViewModel.cs       # MVVM glue for search, map, collections, and export
+├── MainPage.xaml / .cs            # Main UI — search, drawing canvas, similarity map, collections
+├── MainWindow.xaml / .cs          # App window host
 └── Assets/
-    ├── icons.json                      # Fluent icon name → codepoint mapping
-    └── FluentSystemIcons-Regular.ttf   # Bundled icon font
+    ├── icons.json                  # Fluent icon name → codepoint mapping
+    └── FluentSystemIcons-Regular.ttf # Bundled icon font
 ```
 
 **Dependencies**
