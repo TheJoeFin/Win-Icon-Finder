@@ -9,10 +9,13 @@ using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Windows.Foundation;
+using Windows.Storage;
+using Windows.Storage.Pickers;
 using Windows.UI;
 using WinIconFinder.Models;
 using WinIconFinder.Services;
 using WinIconFinder.ViewModels;
+using WinRT.Interop;
 
 namespace WinIconFinder;
 
@@ -33,9 +36,6 @@ public sealed partial class MainPage : Page
 
     // Tracks the current square canvas side length for stroke rescaling on resize
     private double _canvasSize;
-
-    // Lazily created context menu shared across all list items
-    private MenuFlyout? _itemContextMenu;
 
     // ── Similarity map state ──────────────────────────────────────────────────
     private float _mapScale = 1f;
@@ -102,6 +102,8 @@ public sealed partial class MainPage : Page
             // Refresh map as soon as loading finishes (avoids "not ready" guard hit)
             if (e.PropertyName == nameof(ViewModel.IsBusy) && !ViewModel.IsBusy)
                 MapCanvas.Invalidate();
+            if (e.PropertyName == nameof(ViewModel.SelectedCollection))
+                CollectionIconsListView.SelectedItems.Clear();
         };
 
         Loaded += OnPageLoaded;
@@ -364,9 +366,9 @@ public sealed partial class MainPage : Page
     private void SetActivePen(Microsoft.UI.Xaml.Controls.Primitives.ToggleButton active, float width)
     {
         _penWidth = width;
-        PenSmallButton.IsChecked  = ReferenceEquals(active, PenSmallButton);
+        PenSmallButton.IsChecked = ReferenceEquals(active, PenSmallButton);
         PenMediumButton.IsChecked = ReferenceEquals(active, PenMediumButton);
-        PenLargeButton.IsChecked  = ReferenceEquals(active, PenLargeButton);
+        PenLargeButton.IsChecked = ReferenceEquals(active, PenLargeButton);
     }
 
     // -------------------------------------------------------------------------
@@ -375,19 +377,24 @@ public sealed partial class MainPage : Page
 
     private void IconItem_RightTapped(object sender, RightTappedRoutedEventArgs e)
     {
-        if (sender is not FrameworkElement fe) return;
+        if (sender is not FrameworkElement fe || fe.DataContext is not FluentIcon icon) return;
 
-        if (fe.DataContext is FluentIcon icon)
-            ViewModel.SelectedIcon = icon;
-
-        _itemContextMenu ??= BuildItemContextMenu();
-        _itemContextMenu.ShowAt(fe, e.GetPosition(fe));
+        ShowItemContextMenu(fe, e.GetPosition(fe), icon);
         e.Handled = true;
     }
 
-    private MenuFlyout BuildItemContextMenu()
+    private MenuFlyout BuildItemContextMenu(FluentIcon icon)
     {
         MenuFlyout flyout = new();
+
+        ToggleMenuFlyoutItem favorite = new()
+        {
+            Text = "Favorite in Default",
+            IsChecked = icon.IsFavorite
+        };
+        favorite.Click += async (_, _) => await ViewModel.ToggleFavoriteAsync(icon);
+
+        MenuFlyoutSubItem collections = BuildCollectionsSubMenu(icon);
 
         MenuFlyoutItem copyGlyph = new()
         {
@@ -421,6 +428,9 @@ public sealed partial class MainPage : Page
         AutomationProperties.SetAutomationId(copySvg, "CtxCopySvg");
         copySvg.Click += CopySvg_Click;
 
+        flyout.Items.Add(favorite);
+        flyout.Items.Add(collections);
+        flyout.Items.Add(new MenuFlyoutSeparator());
         flyout.Items.Add(copyGlyph);
         flyout.Items.Add(copyXaml);
         flyout.Items.Add(new MenuFlyoutSeparator());
@@ -429,11 +439,48 @@ public sealed partial class MainPage : Page
         return flyout;
     }
 
-    private async void CopyGlyph_Click(object sender, RoutedEventArgs e) =>
-        await CopyGlyphWithFormatAsync();
-
-    private async Task CopyGlyphWithFormatAsync()
+    private MenuFlyoutSubItem BuildCollectionsSubMenu(FluentIcon icon)
     {
+        MenuFlyoutSubItem collections = new()
+        {
+            Text = "Collections"
+        };
+
+        foreach (IconCollection collection in ViewModel.Collections)
+        {
+            ToggleMenuFlyoutItem item = new()
+            {
+                Text = collection.Name,
+                IsChecked = ViewModel.IsIconInCollection(icon, collection.Name)
+            };
+            item.Click += async (_, _) =>
+                await ViewModel.SetIconCollectionMembershipAsync(icon, collection.Name, item.IsChecked);
+
+            collections.Items.Add(item);
+        }
+
+        collections.Items.Add(new MenuFlyoutSeparator());
+
+        MenuFlyoutItem newCollection = new()
+        {
+            Text = "New collection…"
+        };
+        newCollection.Click += async (_, _) => await CreateCollectionFromSelectionAsync([icon]);
+        collections.Items.Add(newCollection);
+
+        return collections;
+    }
+
+    private async void CopyGlyph_Click(object sender, RoutedEventArgs e) =>
+        await CopyGlyphWithFormatAsync(sender);
+
+    private async Task CopyGlyphWithFormatAsync(object sender)
+    {
+        if (!TrySelectActionIcon(sender))
+        {
+            return;
+        }
+
         ContentDialog dialog = new()
         {
             Title = "Glyph code format",
@@ -452,12 +499,353 @@ public sealed partial class MainPage : Page
     }
 
     private void CopyXaml_Click(object sender, RoutedEventArgs e) =>
-        ViewModel.CopyAsXamlCommand.Execute(null);
+        ExecuteCopyAction(sender, () => ViewModel.CopyAsXamlCommand.Execute(null));
 
     private async void CopyPng_Click(object sender, RoutedEventArgs e) =>
-        await CopyPngWithColorChoiceAsync();
+        await CopyPngWithColorChoiceAsync(sender);
 
-    private async Task CopyPngWithColorChoiceAsync()
+    private async Task CopyPngWithColorChoiceAsync(object sender)
+    {
+        if (!TrySelectActionIcon(sender))
+        {
+            return;
+        }
+
+        bool? useBlack = await PromptForPngColorChoiceAsync();
+        if (!useBlack.HasValue) return;
+
+        await ViewModel.CopyAsPngCommand.ExecuteAsync(useBlack.Value);
+    }
+
+    private void CopySvg_Click(object sender, RoutedEventArgs e) =>
+        ExecuteCopyAction(sender, () => ViewModel.CopyAsSvgCommand.Execute(null));
+
+    // -------------------------------------------------------------------------
+    // Mode switch
+    // -------------------------------------------------------------------------
+
+    private void NavView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs e)
+    {
+        if (ReferenceEquals(e.SelectedItem, SimilarityMapNavItem))
+        {
+            SearchModePanel.Visibility = Visibility.Collapsed;
+            SimilarityMapPanel.Visibility = Visibility.Visible;
+            CollectionsPanel.Visibility = Visibility.Collapsed;
+            ViewModel.IsMapMode = true;
+            MapHintText.Visibility = _mapPivotIconIdx >= 0 ? Visibility.Collapsed : Visibility.Visible;
+            if (_mapPivotIconIdx < 0)
+                FitGridToCanvas();
+            MapCanvas.Invalidate();
+        }
+        else if (ReferenceEquals(e.SelectedItem, CollectionsNavItem))
+        {
+            SearchModePanel.Visibility = Visibility.Collapsed;
+            SimilarityMapPanel.Visibility = Visibility.Collapsed;
+            CollectionsPanel.Visibility = Visibility.Visible;
+            ViewModel.IsMapMode = false;
+        }
+        else
+        {
+            SearchModePanel.Visibility = Visibility.Visible;
+            SimilarityMapPanel.Visibility = Visibility.Collapsed;
+            CollectionsPanel.Visibility = Visibility.Collapsed;
+            ViewModel.IsMapMode = false;
+        }
+    }
+
+    private async void FavoriteIcon_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TrySelectActionIcon(sender, out FluentIcon icon))
+        {
+            return;
+        }
+
+        await ViewModel.ToggleFavoriteAsync(icon);
+    }
+
+    private void IconRow_PointerEntered(object sender, PointerRoutedEventArgs e)
+    {
+        SetHoverActionsVisible(sender, isVisible: true);
+    }
+
+    private void IconRow_PointerExited(object sender, PointerRoutedEventArgs e)
+    {
+        SetHoverActionsVisible(sender, isVisible: false);
+    }
+
+    private void ManageCollections_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement element || !TrySelectActionIcon(sender, out FluentIcon icon))
+        {
+            return;
+        }
+
+        MenuFlyout flyout = new();
+        foreach (IconCollection collection in ViewModel.Collections)
+        {
+            ToggleMenuFlyoutItem item = new()
+            {
+                Text = collection.Name,
+                IsChecked = ViewModel.IsIconInCollection(icon, collection.Name)
+            };
+            item.Click += async (_, _) =>
+                await ViewModel.SetIconCollectionMembershipAsync(icon, collection.Name, item.IsChecked);
+
+            flyout.Items.Add(item);
+        }
+
+        flyout.Items.Add(new MenuFlyoutSeparator());
+
+        MenuFlyoutItem newCollection = new()
+        {
+            Text = "New collection…"
+        };
+        newCollection.Click += async (_, _) => await CreateCollectionFromSelectionAsync([icon]);
+        flyout.Items.Add(newCollection);
+
+        flyout.ShowAt(element);
+    }
+
+    private void MapCanvas_RightTapped(object sender, RightTappedRoutedEventArgs e)
+    {
+        if (!ViewModel.LayoutService.IsReady)
+        {
+            return;
+        }
+
+        float width = (float)MapCanvas.ActualWidth;
+        float height = (float)MapCanvas.ActualHeight;
+        if (width <= 0 || height <= 0)
+        {
+            return;
+        }
+
+        Point point = e.GetPosition(MapCanvas);
+        int hitIndex = MapHitTest((float)point.X, (float)point.Y, width, height);
+        if (hitIndex < 0 || hitIndex >= ViewModel.LayoutService.Positions.Count)
+        {
+            return;
+        }
+
+        _mapHoveredIndex = hitIndex;
+        MapCanvas.Invalidate();
+
+        ShowItemContextMenu(MapCanvas, point, ViewModel.LayoutService.Positions[hitIndex].Icon);
+        e.Handled = true;
+    }
+
+    private static void SetHoverActionsVisible(object sender, bool isVisible)
+    {
+        if (sender is FrameworkElement row && row.FindName("HoverActionsPanel") is UIElement actions)
+        {
+            actions.Opacity = isVisible ? 1.0 : 0.0;
+            actions.IsHitTestVisible = isVisible;
+        }
+    }
+
+    private void ShowItemContextMenu(FrameworkElement target, Point position, FluentIcon icon)
+    {
+        ViewModel.SelectedIcon = icon;
+        BuildItemContextMenu(icon).ShowAt(target, position);
+    }
+
+    private void ExecuteCopyAction(object sender, Action action)
+    {
+        if (!TrySelectActionIcon(sender))
+        {
+            return;
+        }
+
+        action();
+    }
+
+    private bool TrySelectActionIcon(object sender) =>
+        TrySelectActionIcon(sender, out _);
+
+    private bool TrySelectActionIcon(object sender, out FluentIcon icon)
+    {
+        FluentIcon? resolvedIcon = GetActionIcon(sender);
+        if (resolvedIcon is null)
+        {
+            icon = null!;
+            return false;
+        }
+
+        icon = resolvedIcon;
+        ViewModel.SelectedIcon = icon;
+        return true;
+    }
+
+    private FluentIcon? GetActionIcon(object sender)
+    {
+        if (sender is FrameworkElement { DataContext: FluentIcon dataContextIcon })
+        {
+            return dataContextIcon;
+        }
+
+        if (sender is FrameworkElement { Tag: FluentIcon tagIcon })
+        {
+            return tagIcon;
+        }
+
+        return ViewModel.SelectedIcon;
+    }
+
+    private void CollectionIconsListView_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
+        ViewModel.SetSelectedCollectionIcons(CollectionIconsListView.SelectedItems.OfType<FluentIcon>());
+
+    private async void CreateCollection_Click(object sender, RoutedEventArgs e) =>
+        await CreateCollectionFromSelectionAsync([]);
+
+    private async void SaveSelectionToNewCollection_Click(object sender, RoutedEventArgs e) =>
+        await CreateCollectionFromSelectionAsync(ViewModel.SelectedCollectionIcons);
+
+    private void AddSelectionToCollection_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement element || ViewModel.SelectedCollectionIcons.Count == 0)
+        {
+            return;
+        }
+
+        MenuFlyout flyout = BuildBulkCollectionFlyout(ViewModel.SelectedCollectionIcons);
+        flyout.ShowAt(element);
+    }
+
+    private async void RemoveSelectionFromCollection_Click(object sender, RoutedEventArgs e) =>
+        await ViewModel.RemoveSelectedIconsFromCurrentCollectionAsync();
+
+    private void ExportSelection_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement element || ViewModel.SelectedCollectionIcons.Count == 0)
+        {
+            return;
+        }
+
+        MenuFlyout flyout = BuildExportSelectionFlyout();
+        flyout.ShowAt(element);
+    }
+
+    private MenuFlyout BuildBulkCollectionFlyout(IReadOnlyList<FluentIcon> icons)
+    {
+        MenuFlyout flyout = new();
+
+        foreach (IconCollection collection in ViewModel.Collections)
+        {
+            MenuFlyoutItem item = new()
+            {
+                Text = collection.Name
+            };
+            item.Click += async (_, _) => await ViewModel.AddIconsToCollectionAsync(collection.Name, icons);
+            flyout.Items.Add(item);
+        }
+
+        flyout.Items.Add(new MenuFlyoutSeparator());
+
+        MenuFlyoutItem newCollection = new()
+        {
+            Text = "New collection…"
+        };
+        newCollection.Click += async (_, _) => await CreateCollectionFromSelectionAsync(icons);
+        flyout.Items.Add(newCollection);
+
+        return flyout;
+    }
+
+    private MenuFlyout BuildExportSelectionFlyout()
+    {
+        MenuFlyout flyout = new();
+
+        MenuFlyoutItem copyGlyphs = new()
+        {
+            Text = "Copy glyph codes"
+        };
+        copyGlyphs.Click += (_, _) => ViewModel.CopySelectedCollectionGlyphs(false);
+
+        MenuFlyoutItem copyGlyphsForXaml = new()
+        {
+            Text = "Copy glyph codes for XAML"
+        };
+        copyGlyphsForXaml.Click += (_, _) => ViewModel.CopySelectedCollectionGlyphs(true);
+
+        MenuFlyoutItem copyXaml = new()
+        {
+            Text = "Copy XAML FontIcons"
+        };
+        copyXaml.Click += (_, _) => ViewModel.CopySelectedCollectionXaml();
+
+        MenuFlyoutItem exportPng = new()
+        {
+            Text = "Export PNG files…"
+        };
+        exportPng.Click += async (_, _) => await ExportSelectedPngsAsync();
+
+        MenuFlyoutItem exportSvg = new()
+        {
+            Text = "Export SVG files…"
+        };
+        exportSvg.Click += async (_, _) => await ExportSelectedSvgsAsync();
+
+        flyout.Items.Add(copyGlyphs);
+        flyout.Items.Add(copyGlyphsForXaml);
+        flyout.Items.Add(copyXaml);
+        flyout.Items.Add(new MenuFlyoutSeparator());
+        flyout.Items.Add(exportPng);
+        flyout.Items.Add(exportSvg);
+
+        return flyout;
+    }
+
+    private async Task CreateCollectionFromSelectionAsync(IEnumerable<FluentIcon> icons)
+    {
+        string? collectionName = await PromptForCollectionNameAsync();
+        if (collectionName is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await ViewModel.CreateCollectionAsync(collectionName, icons);
+        }
+        catch (ArgumentException ex)
+        {
+            await ShowMessageDialogAsync("Collection name required", ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            await ShowMessageDialogAsync("Unable to create collection", ex.Message);
+        }
+    }
+
+    private async Task ExportSelectedPngsAsync()
+    {
+        string? folderPath = await PickFolderPathAsync();
+        if (folderPath is null)
+        {
+            return;
+        }
+
+        bool? useBlack = await PromptForPngColorChoiceAsync();
+        if (!useBlack.HasValue)
+        {
+            return;
+        }
+
+        await ViewModel.ExportSelectedCollectionPngsAsync(folderPath, useBlack.Value);
+    }
+
+    private async Task ExportSelectedSvgsAsync()
+    {
+        string? folderPath = await PickFolderPathAsync();
+        if (folderPath is null)
+        {
+            return;
+        }
+
+        await ViewModel.ExportSelectedCollectionSvgsAsync(folderPath);
+    }
+
+    private async Task<bool?> PromptForPngColorChoiceAsync()
     {
         ContentDialog dialog = new()
         {
@@ -471,42 +859,70 @@ public sealed partial class MainPage : Page
         };
 
         ContentDialogResult result = await dialog.ShowAsync();
-        if (result == ContentDialogResult.None) return;
+        if (result == ContentDialogResult.None)
+        {
+            return null;
+        }
 
-        await ViewModel.CopyAsPngCommand.ExecuteAsync(result == ContentDialogResult.Primary);
+        return result == ContentDialogResult.Primary;
     }
 
-    private void CopySvg_Click(object sender, RoutedEventArgs e) =>
-        ViewModel.CopyAsSvgCommand.Execute(null);
-
-    // -------------------------------------------------------------------------
-    // Mode switch
-    // -------------------------------------------------------------------------
-
-    private void NavView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs e)
+    private async Task<string?> PromptForCollectionNameAsync()
     {
-        if (ReferenceEquals(e.SelectedItem, SimilarityMapNavItem))
+        TextBox input = new()
         {
-            SearchModePanel.Visibility = Visibility.Collapsed;
-            SimilarityMapPanel.Visibility = Visibility.Visible;
-            ViewModel.IsMapMode = true;
-            MapHintText.Visibility = _mapPivotIconIdx >= 0 ? Visibility.Collapsed : Visibility.Visible;
-            if (_mapPivotIconIdx < 0)
-                FitGridToCanvas();
-            MapCanvas.Invalidate();
-        }
-        else
+            AcceptsReturn = false,
+            PlaceholderText = "Collection name"
+        };
+
+        ContentDialog dialog = new()
         {
-            SearchModePanel.Visibility = Visibility.Visible;
-            SimilarityMapPanel.Visibility = Visibility.Collapsed;
-            ViewModel.IsMapMode = false;
+            Title = "New collection",
+            Content = input,
+            PrimaryButtonText = "Create",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = XamlRoot
+        };
+
+        ContentDialogResult result = await dialog.ShowAsync();
+        if (result != ContentDialogResult.Primary)
+        {
+            return null;
         }
+
+        return input.Text.Trim();
+    }
+
+    private async Task<string?> PickFolderPathAsync()
+    {
+        FolderPicker picker = new();
+        picker.FileTypeFilter.Add("*");
+        InitializeWithWindow.Initialize(picker, App.WindowHandle);
+
+        StorageFolder? folder = await picker.PickSingleFolderAsync();
+        return folder?.Path;
+    }
+
+    private async Task ShowMessageDialogAsync(string title, string message)
+    {
+        ContentDialog dialog = new()
+        {
+            Title = title,
+            Content = message,
+            CloseButtonText = "OK",
+            XamlRoot = XamlRoot
+        };
+
+        await dialog.ShowAsync();
     }
 
     private void ExploreInMap_Click(object sender, RoutedEventArgs e)
     {
-        FluentIcon? icon = ViewModel.SelectedIcon;
+        FluentIcon? icon = GetActionIcon(sender) ?? ViewModel.SelectedIcon;
         if (icon == null || !ViewModel.LayoutService.IsReady) return;
+
+        ViewModel.SelectedIcon = icon;
 
         // Find this icon's position in the current layout
         IReadOnlyList<LayoutPosition> positions = ViewModel.LayoutService.Positions;
@@ -715,8 +1131,28 @@ public sealed partial class MainPage : Page
 
     private void MapCanvas_PointerPressed(object sender, PointerRoutedEventArgs e)
     {
+        PointerPoint point = e.GetCurrentPoint(MapCanvas);
+        if (point.Properties.IsRightButtonPressed)
+        {
+            float width = (float)MapCanvas.ActualWidth;
+            float height = (float)MapCanvas.ActualHeight;
+            if (width > 0 && height > 0)
+            {
+                int hovered = MapHitTest((float)point.Position.X, (float)point.Position.Y, width, height);
+                if (hovered != _mapHoveredIndex)
+                {
+                    _mapHoveredIndex = hovered;
+                    MapCanvas.Invalidate();
+                }
+            }
+
+            _mapIsDragging = false;
+            _mapDragHasMoved = true;
+            return;
+        }
+
         MapCanvas.CapturePointer(e.Pointer);
-        Point pt = e.GetCurrentPoint(MapCanvas).Position;
+        Point pt = point.Position;
         _mapActivePointers[e.Pointer.PointerId] = pt;
 
         if (_mapActivePointers.Count >= 2)
@@ -928,6 +1364,14 @@ public sealed partial class MainPage : Page
 
     public static string FormatCount(int count) =>
         count == 1 ? "1 icon" : $"{count:N0} icons";
+
+    public static string FormatCollectionCount(int count) =>
+        count == 1 ? "1 collection" : $"{count:N0} collections";
+
+    public static bool HasSelection(int count) => count > 0;
+
+    public static Visibility ZeroToVisibility(int count) =>
+        count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
     public static string FormatLoading(string phase, int progress) =>
         progress < 100 ? $"{phase} {progress}%" : "Almost done…";

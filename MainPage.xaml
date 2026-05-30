@@ -4,12 +4,54 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:canvas="using:Microsoft.Graphics.Canvas.UI.Xaml"
+    xmlns:controls="using:WinIconFinder.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:local="using:WinIconFinder"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:models="using:WinIconFinder.Models"
     Background="Transparent"
     mc:Ignorable="d">
+
+    <Page.Resources>
+        <Style
+            x:Key="CanvasToolbarButtonStyle"
+            BasedOn="{StaticResource DefaultButtonStyle}"
+            TargetType="Button">
+            <Setter Property="Height" Value="32" />
+            <Setter Property="MinWidth" Value="32" />
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+
+        <Style
+            x:Key="CanvasToolbarIconButtonStyle"
+            BasedOn="{StaticResource CanvasToolbarButtonStyle}"
+            TargetType="Button">
+            <Setter Property="Width" Value="32" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="FontSize" Value="16" />
+        </Style>
+
+        <Style
+            x:Key="CanvasToolbarToggleButtonStyle"
+            BasedOn="{StaticResource DefaultToggleButtonStyle}"
+            TargetType="ToggleButton">
+            <Setter Property="Height" Value="32" />
+            <Setter Property="MinWidth" Value="32" />
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+
+        <Style
+            x:Key="CanvasToolbarIconToggleButtonStyle"
+            BasedOn="{StaticResource CanvasToolbarToggleButtonStyle}"
+            TargetType="ToggleButton">
+            <Setter Property="Width" Value="40" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
+    </Page.Resources>
 
     <NavigationView
         x:Name="NavView"
@@ -34,6 +76,14 @@
                 ToolTipService.ToolTip="Explore icons arranged by visual similarity">
                 <NavigationViewItem.Icon>
                     <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE800;" />
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem
+                x:Name="CollectionsNavItem"
+                Content="Collections"
+                ToolTipService.ToolTip="Review favorites and saved icon groups">
+                <NavigationViewItem.Icon>
+                    <controls:CollectionsIcon />
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
         </NavigationView.MenuItems>
@@ -101,8 +151,11 @@
                         <ListView.ItemTemplate>
                             <DataTemplate x:DataType="models:FluentIcon">
                                 <Grid
-                                    Height="52"
+                                    Height="56"
+                                    Background="Transparent"
                                     ColumnSpacing="8"
+                                    PointerEntered="IconRow_PointerEntered"
+                                    PointerExited="IconRow_PointerExited"
                                     RightTapped="IconItem_RightTapped">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="40" />
@@ -143,24 +196,57 @@
                                         <TextBlock
                                             Opacity="0.6"
                                             Style="{StaticResource CaptionTextBlockStyle}"
-                                            Text="{x:Bind CodepointHex}" />
+                                            Text="{x:Bind MetadataText}" />
                                     </StackPanel>
 
-                                    <!--  Match score badge  -->
-                                    <Border
+                                    <StackPanel
                                         Grid.Column="2"
-                                        Padding="6,2"
                                         VerticalAlignment="Center"
-                                        Background="{ThemeResource AccentFillColorDefaultBrush}"
-                                        CornerRadius="4"
-                                        Visibility="{x:Bind local:MainPage.BoolToVisibility(IsMatch),
-                                                            Mode=OneWay}">
-                                        <TextBlock
-                                            Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
-                                            Style="{StaticResource CaptionTextBlockStyle}"
-                                            Text="{x:Bind local:MainPage.FormatScore(MatchScore),
-                                                          Mode=OneWay}" />
-                                    </Border>
+                                        Orientation="Horizontal"
+                                        Spacing="6">
+                                        <!--  Match score badge  -->
+                                        <Border
+                                            Padding="6,2"
+                                            VerticalAlignment="Center"
+                                            Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                            CornerRadius="4"
+                                            Visibility="{x:Bind local:MainPage.BoolToVisibility(IsMatch),
+                                                                Mode=OneWay}">
+                                            <TextBlock
+                                                Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
+                                                Style="{StaticResource CaptionTextBlockStyle}"
+                                                Text="{x:Bind local:MainPage.FormatScore(MatchScore),
+                                                              Mode=OneWay}" />
+                                        </Border>
+                                        <StackPanel
+                                            x:Name="HoverActionsPanel"
+                                            VerticalAlignment="Center"
+                                            IsHitTestVisible="False"
+                                            Opacity="0"
+                                            Orientation="Horizontal"
+                                            Spacing="6">
+                                            <ToggleButton
+                                                MinWidth="32"
+                                                AutomationProperties.Name="Favorite icon"
+                                                Click="FavoriteIcon_Click"
+                                                IsChecked="{x:Bind IsFavorite,
+                                                                   Mode=OneWay}"
+                                                ToolTipService.ToolTip="Toggle favorite in Default collection">
+                                                <Viewbox Height="16">
+                                                    <SymbolIcon Symbol="OutlineStar" />
+                                                </Viewbox>
+                                            </ToggleButton>
+                                            <Button
+                                                Padding="8"
+                                                AutomationProperties.Name="Manage icon collections"
+                                                Click="ManageCollections_Click"
+                                                ToolTipService.ToolTip="Add or remove this icon from collections">
+                                                <Viewbox Height="16">
+                                                    <SymbolIcon Symbol="More" />
+                                                </Viewbox>
+                                            </Button>
+                                        </StackPanel>
+                                    </StackPanel>
                                 </Grid>
                             </DataTemplate>
                         </ListView.ItemTemplate>
@@ -202,6 +288,7 @@
                                 Click="CopyGlyph_Click"
                                 Content="&#xE8C8;"
                                 FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                Style="{StaticResource CanvasToolbarIconButtonStyle}"
                                 ToolTipService.ToolTip="Copy glyph code" />
                             <Button
                                 AutomationProperties.AutomationId="CopyXamlButton"
@@ -209,6 +296,7 @@
                                 Command="{x:Bind ViewModel.CopyAsXamlCommand}"
                                 Content="&#xE943;"
                                 FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                Style="{StaticResource CanvasToolbarIconButtonStyle}"
                                 ToolTipService.ToolTip="Copy as XAML FontIcon" />
                             <Button
                                 AutomationProperties.AutomationId="CopyPngButton"
@@ -216,6 +304,7 @@
                                 Click="CopyPng_Click"
                                 Content="&#xEB9F;"
                                 FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                Style="{StaticResource CanvasToolbarIconButtonStyle}"
                                 ToolTipService.ToolTip="Copy as PNG" />
                             <Button
                                 AutomationProperties.AutomationId="CopySvgButton"
@@ -223,6 +312,7 @@
                                 Command="{x:Bind ViewModel.CopyAsSvgCommand}"
                                 Content="&#xE71B;"
                                 FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                Style="{StaticResource CanvasToolbarIconButtonStyle}"
                                 ToolTipService.ToolTip="Copy as SVG" />
 
                             <Rectangle
@@ -236,6 +326,7 @@
                                 AutomationProperties.AutomationId="ExploreInMapButton"
                                 AutomationProperties.Name="Explore similar icons in map"
                                 Click="ExploreInMap_Click"
+                                Style="{StaticResource CanvasToolbarButtonStyle}"
                                 ToolTipService.ToolTip="Explore similar icons in Similarity Map">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <FontIcon
@@ -273,6 +364,7 @@
                                 Click="UndoStroke_Click"
                                 Content="&#xE7A7;"
                                 FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                Style="{StaticResource CanvasToolbarIconButtonStyle}"
                                 ToolTipService.ToolTip="Undo last stroke (Ctrl+Z)">
                                 <Button.KeyboardAccelerators>
                                     <KeyboardAccelerator Key="Z" Modifiers="Control" />
@@ -283,7 +375,8 @@
                                 AutomationProperties.AutomationId="ClearButton"
                                 AutomationProperties.Name="Clear canvas"
                                 Command="{x:Bind ViewModel.ClearCanvasCommand}"
-                                Content="Clear">
+                                Content="Clear"
+                                Style="{StaticResource CanvasToolbarButtonStyle}">
                                 <Button.KeyboardAccelerators>
                                     <KeyboardAccelerator Key="L" Modifiers="Control" />
                                 </Button.KeyboardAccelerators>
@@ -295,6 +388,7 @@
                                 Click="RotateInk_Click"
                                 Content="&#xE7AD;"
                                 FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                Style="{StaticResource CanvasToolbarIconButtonStyle}"
                                 ToolTipService.ToolTip="Rotate sketch 90° clockwise" />
 
                             <Rectangle
@@ -304,12 +398,10 @@
 
                             <ToggleButton
                                 x:Name="PenSmallButton"
-                                Width="32"
-                                Height="32"
-                                Padding="0"
                                 AutomationProperties.AutomationId="PenSmallButton"
                                 AutomationProperties.Name="Small pen"
                                 Click="PenSmall_Click"
+                                Style="{StaticResource CanvasToolbarIconToggleButtonStyle}"
                                 ToolTipService.ToolTip="Small pen (6px)">
                                 <Ellipse
                                     Width="7"
@@ -318,12 +410,10 @@
                             </ToggleButton>
                             <ToggleButton
                                 x:Name="PenMediumButton"
-                                Width="32"
-                                Height="32"
-                                Padding="0"
                                 AutomationProperties.AutomationId="PenMediumButton"
                                 AutomationProperties.Name="Medium pen"
                                 Click="PenMedium_Click"
+                                Style="{StaticResource CanvasToolbarIconToggleButtonStyle}"
                                 ToolTipService.ToolTip="Medium pen (10px)">
                                 <Ellipse
                                     Width="11"
@@ -332,12 +422,10 @@
                             </ToggleButton>
                             <ToggleButton
                                 x:Name="PenLargeButton"
-                                Width="32"
-                                Height="32"
-                                Padding="0"
                                 AutomationProperties.AutomationId="PenLargeButton"
                                 AutomationProperties.Name="Large pen"
                                 Click="PenLarge_Click"
+                                Style="{StaticResource CanvasToolbarIconToggleButtonStyle}"
                                 ToolTipService.ToolTip="Large pen (16px)">
                                 <Ellipse
                                     Width="16"
@@ -487,19 +575,55 @@
                         Spacing="4"
                         Visibility="{x:Bind local:MainPage.HasSelectedIcon(ViewModel.MapPivotIcon),
                                             Mode=OneWay}">
+                        <ToggleButton
+                            AutomationProperties.AutomationId="MapFavoriteButton"
+                            AutomationProperties.Name="Favorite icon"
+                            Click="FavoriteIcon_Click"
+                            IsChecked="{x:Bind ViewModel.MapPivotIcon.IsFavorite,
+                                               Mode=OneWay}"
+                            Style="{StaticResource CanvasToolbarIconToggleButtonStyle}"
+                            Tag="{x:Bind ViewModel.MapPivotIcon,
+                                         Mode=OneWay}"
+                            ToolTipService.ToolTip="Toggle favorite in Default collection">
+                            <Viewbox Height="16">
+                                <SymbolIcon Symbol="OutlineStar" />
+                            </Viewbox>
+                        </ToggleButton>
+                        <Button
+                            AutomationProperties.AutomationId="MapCollectionsButton"
+                            AutomationProperties.Name="Manage icon collections"
+                            Click="ManageCollections_Click"
+                            Style="{StaticResource CanvasToolbarIconButtonStyle}"
+                            Tag="{x:Bind ViewModel.MapPivotIcon,
+                                         Mode=OneWay}"
+                            ToolTipService.ToolTip="Add or remove this icon from collections">
+                            <Viewbox Height="16">
+                                <SymbolIcon Symbol="More" />
+                            </Viewbox>
+                        </Button>
+                        <Rectangle
+                            Width="1"
+                            Margin="4,6,4,6"
+                            Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
                         <Button
                             AutomationProperties.AutomationId="MapCopyGlyphButton"
                             AutomationProperties.Name="Copy glyph code"
                             Click="CopyGlyph_Click"
                             Content="&#xE8C8;"
                             FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                            Style="{StaticResource CanvasToolbarIconButtonStyle}"
+                            Tag="{x:Bind ViewModel.MapPivotIcon,
+                                         Mode=OneWay}"
                             ToolTipService.ToolTip="Copy glyph code" />
                         <Button
                             AutomationProperties.AutomationId="MapCopyXamlButton"
                             AutomationProperties.Name="Copy XAML FontIcon"
-                            Command="{x:Bind ViewModel.CopyAsXamlCommand}"
+                            Click="CopyXaml_Click"
                             Content="&#xE943;"
                             FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                            Style="{StaticResource CanvasToolbarIconButtonStyle}"
+                            Tag="{x:Bind ViewModel.MapPivotIcon,
+                                         Mode=OneWay}"
                             ToolTipService.ToolTip="Copy as XAML FontIcon" />
                         <Button
                             AutomationProperties.AutomationId="MapCopyPngButton"
@@ -507,13 +631,19 @@
                             Click="CopyPng_Click"
                             Content="&#xEB9F;"
                             FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                            Style="{StaticResource CanvasToolbarIconButtonStyle}"
+                            Tag="{x:Bind ViewModel.MapPivotIcon,
+                                         Mode=OneWay}"
                             ToolTipService.ToolTip="Copy as PNG" />
                         <Button
                             AutomationProperties.AutomationId="MapCopySvgButton"
                             AutomationProperties.Name="Copy SVG"
-                            Command="{x:Bind ViewModel.CopyAsSvgCommand}"
+                            Click="CopySvg_Click"
                             Content="&#xE71B;"
                             FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                            Style="{StaticResource CanvasToolbarIconButtonStyle}"
+                            Tag="{x:Bind ViewModel.MapPivotIcon,
+                                         Mode=OneWay}"
                             ToolTipService.ToolTip="Copy as SVG" />
                     </StackPanel>
 
@@ -546,7 +676,8 @@
                     PointerMoved="MapCanvas_PointerMoved"
                     PointerPressed="MapCanvas_PointerPressed"
                     PointerReleased="MapCanvas_PointerReleased"
-                    PointerWheelChanged="MapCanvas_PointerWheelChanged" />
+                    PointerWheelChanged="MapCanvas_PointerWheelChanged"
+                    RightTapped="MapCanvas_RightTapped" />
 
                 <!--  Empty-state hint  -->
                 <TextBlock
@@ -558,6 +689,293 @@
                     Opacity="0.35"
                     Style="{StaticResource SubtitleTextBlockStyle}"
                     Text="🗺  Click any icon to explore its visual neighborhood" />
+            </Grid>
+
+            <!--
+                ══════════════════════════════════════════════════════════════
+                COLLECTIONS PANEL
+                ══════════════════════════════════════════════════════════════
+            -->
+            <Grid x:Name="CollectionsPanel" Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="280" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Grid
+                    Grid.Column="0"
+                    BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                    BorderThickness="0,0,1,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock
+                        Grid.Row="0"
+                        Margin="12,12,12,4"
+                        Style="{StaticResource TitleTextBlockStyle}"
+                        Text="Collections" />
+
+                    <TextBlock
+                        Grid.Row="1"
+                        Margin="12,0,12,8"
+                        Opacity="0.6"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="{x:Bind local:MainPage.FormatCollectionCount(ViewModel.Collections.Count),
+                                      Mode=OneWay}" />
+
+                    <ListView
+                        x:Name="CollectionsListView"
+                        Grid.Row="2"
+                        AutomationProperties.AutomationId="CollectionsListView"
+                        ItemsSource="{x:Bind ViewModel.Collections,
+                                             Mode=OneWay}"
+                        SelectedItem="{x:Bind ViewModel.SelectedCollection,
+                                              Mode=TwoWay}"
+                        SelectionMode="Single">
+                        <ListView.ItemContainerStyle>
+                            <Style BasedOn="{StaticResource DefaultListViewItemStyle}" TargetType="ListViewItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                <Setter Property="Padding" Value="8,4" />
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="models:IconCollection">
+                                <Grid MinHeight="56" ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock
+                                            Style="{StaticResource BodyStrongTextBlockStyle}"
+                                            Text="{x:Bind Name}"
+                                            TextTrimming="CharacterEllipsis" />
+                                        <TextBlock
+                                            Opacity="0.6"
+                                            Style="{StaticResource CaptionTextBlockStyle}"
+                                            Text="{x:Bind CountLabel}" />
+                                    </StackPanel>
+
+                                    <Border
+                                        Grid.Column="1"
+                                        Padding="6,2"
+                                        VerticalAlignment="Center"
+                                        Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                        CornerRadius="4"
+                                        Visibility="{x:Bind local:MainPage.BoolToVisibility(IsDefault),
+                                                            Mode=OneWay}">
+                                        <TextBlock
+                                            Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
+                                            Style="{StaticResource CaptionTextBlockStyle}"
+                                            Text="Default" />
+                                    </Border>
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </Grid>
+
+                <Grid Grid.Column="1">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <Grid
+                        Grid.Row="0"
+                        Padding="12,8,12,8"
+                        RowSpacing="8">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <CommandBar Grid.Row="0" DefaultLabelPosition="Right">
+                            <AppBarButton
+                                AutomationProperties.AutomationId="CreateCollectionButton"
+                                Click="CreateCollection_Click"
+                                Label="New collection">
+                                <AppBarButton.Icon>
+                                    <SymbolIcon Symbol="Add" />
+                                </AppBarButton.Icon>
+                            </AppBarButton>
+                            <AppBarButton
+                                AutomationProperties.AutomationId="SaveSelectionToNewCollectionButton"
+                                Click="SaveSelectionToNewCollection_Click"
+                                IsEnabled="{x:Bind local:MainPage.HasSelection(ViewModel.SelectedCollectionIconCount),
+                                                   Mode=OneWay}"
+                                Label="Save to new collection">
+                                <AppBarButton.Icon>
+                                    <SymbolIcon Symbol="Save" />
+                                </AppBarButton.Icon>
+                            </AppBarButton>
+                            <AppBarButton
+                                AutomationProperties.AutomationId="AddSelectionToCollectionButton"
+                                Click="AddSelectionToCollection_Click"
+                                IsEnabled="{x:Bind local:MainPage.HasSelection(ViewModel.SelectedCollectionIconCount),
+                                                   Mode=OneWay}"
+                                Label="Add to collection">
+                                <AppBarButton.Icon>
+                                    <SymbolIcon Symbol="OpenFile" />
+                                </AppBarButton.Icon>
+                            </AppBarButton>
+                            <AppBarButton
+                                AutomationProperties.AutomationId="RemoveSelectionButton"
+                                Click="RemoveSelectionFromCollection_Click"
+                                IsEnabled="{x:Bind local:MainPage.HasSelection(ViewModel.SelectedCollectionIconCount),
+                                                   Mode=OneWay}"
+                                Label="Remove from current">
+                                <AppBarButton.Icon>
+                                    <SymbolIcon Symbol="Remove" />
+                                </AppBarButton.Icon>
+                            </AppBarButton>
+                            <AppBarButton
+                                AutomationProperties.AutomationId="ExportSelectionButton"
+                                Click="ExportSelection_Click"
+                                IsEnabled="{x:Bind local:MainPage.HasSelection(ViewModel.SelectedCollectionIconCount),
+                                                   Mode=OneWay}"
+                                Label="Export selected">
+                                <AppBarButton.Icon>
+                                    <SymbolIcon Symbol="Share" />
+                                </AppBarButton.Icon>
+                            </AppBarButton>
+                        </CommandBar>
+
+                        <TextBlock
+                            Grid.Row="1"
+                            Opacity="0.7"
+                            Style="{StaticResource BodyTextBlockStyle}"
+                            Text="{x:Bind ViewModel.CollectionsStatusText,
+                                          Mode=OneWay}"
+                            TextTrimming="CharacterEllipsis"
+                            TextWrapping="NoWrap" />
+                    </Grid>
+
+                    <Grid Grid.Row="1">
+                        <ListView
+                            x:Name="CollectionIconsListView"
+                            AutomationProperties.AutomationId="CollectionIconsListView"
+                            IsMultiSelectCheckBoxEnabled="True"
+                            ItemsSource="{x:Bind ViewModel.CollectionIcons,
+                                                 Mode=OneWay}"
+                            SelectionChanged="CollectionIconsListView_SelectionChanged"
+                            SelectionMode="Multiple">
+                            <ListView.ItemContainerStyle>
+                                <Style BasedOn="{StaticResource DefaultListViewItemStyle}" TargetType="ListViewItem">
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                    <Setter Property="Padding" Value="8,2" />
+                                </Style>
+                            </ListView.ItemContainerStyle>
+                            <ListView.ItemTemplate>
+                                <DataTemplate x:DataType="models:FluentIcon">
+                                    <Grid
+                                        Height="56"
+                                        Background="Transparent"
+                                        ColumnSpacing="8"
+                                        PointerEntered="IconRow_PointerEntered"
+                                        PointerExited="IconRow_PointerExited"
+                                        RightTapped="IconItem_RightTapped">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="40" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <Border
+                                            Grid.ColumnSpan="3"
+                                            Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                            CornerRadius="{ThemeResource ControlCornerRadius}"
+                                            IsHitTestVisible="False"
+                                            Opacity="{x:Bind local:MainPage.MatchOpacity(IsMatch),
+                                                             Mode=OneWay}" />
+
+                                        <Border
+                                            Grid.Column="0"
+                                            Width="36"
+                                            Height="36"
+                                            Background="{ThemeResource ControlFillColorDefaultBrush}"
+                                            CornerRadius="{ThemeResource ControlCornerRadius}">
+                                            <TextBlock
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                FontFamily="ms-appx:///Assets/FluentSystemIcons-Regular.ttf#FluentSystemIcons-Regular"
+                                                FontSize="22"
+                                                Text="{x:Bind GlyphString}" />
+                                        </Border>
+
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock
+                                                Style="{StaticResource BodyStrongTextBlockStyle}"
+                                                Text="{x:Bind DisplayName}"
+                                                TextTrimming="CharacterEllipsis" />
+                                            <TextBlock
+                                                Opacity="0.6"
+                                                Style="{StaticResource CaptionTextBlockStyle}"
+                                                Text="{x:Bind MetadataText}" />
+                                        </StackPanel>
+
+                                        <StackPanel
+                                            x:Name="HoverActionsPanel"
+                                            Grid.Column="2"
+                                            VerticalAlignment="Center"
+                                            IsHitTestVisible="False"
+                                            Opacity="0"
+                                            Orientation="Horizontal"
+                                            Spacing="6">
+                                            <Button
+                                                MinWidth="32"
+                                                Padding="0"
+                                                AutomationProperties.Name="Explore in map"
+                                                Click="ExploreInMap_Click"
+                                                Style="{StaticResource CanvasToolbarButtonStyle}"
+                                                ToolTipService.ToolTip="Explore similar icons in Similarity Map">
+                                                <Viewbox Height="16">
+                                                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE800;" />
+                                                </Viewbox>
+                                            </Button>
+                                            <ToggleButton
+                                                MinWidth="32"
+                                                Padding="0"
+                                                AutomationProperties.Name="Favorite icon"
+                                                Click="FavoriteIcon_Click"
+                                                IsChecked="{x:Bind IsFavorite,
+                                                                   Mode=OneWay}"
+                                                Style="{StaticResource CanvasToolbarIconToggleButtonStyle}"
+                                                ToolTipService.ToolTip="Toggle favorite in Default collection">
+                                                <Viewbox Height="16">
+                                                    <SymbolIcon Symbol="OutlineStar" />
+                                                </Viewbox>
+                                            </ToggleButton>
+                                            <Button
+                                                MinWidth="32"
+                                                Padding="0"
+                                                AutomationProperties.Name="Manage icon collections"
+                                                Click="ManageCollections_Click"
+                                                Content="⋯"
+                                                FontSize="20"
+                                                Style="{StaticResource CanvasToolbarButtonStyle}"
+                                                ToolTipService.ToolTip="Add or remove this icon from collections" />
+                                        </StackPanel>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+
+                        <TextBlock
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            IsHitTestVisible="False"
+                            Opacity="0.35"
+                            Style="{StaticResource SubtitleTextBlockStyle}"
+                            Text="Save icons to a collection, then multi-select them here to export"
+                            Visibility="{x:Bind local:MainPage.ZeroToVisibility(ViewModel.CollectionIcons.Count),
+                                                Mode=OneWay}" />
+                    </Grid>
+                </Grid>
             </Grid>
 
         </Grid>
