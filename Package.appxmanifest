@@ -8,7 +8,7 @@
   IgnorableNamespaces="uap rescap">
 
     <Identity Name="WinIconFinder"
-        Version="1.0.0.0"
+        Version="1.1.0.0"
         Publisher="CN=Joseph Finney, O=Joseph Finney, L=Milwaukee, S=Wisconsin, C=US, PostalCode=53212" />
 
   <mp:PhoneIdentity PhoneProductId="E2DE76C1-0822-482D-81D2-91A51336008A" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
