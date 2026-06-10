@@ -1,19 +1,28 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Uno.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <TargetFrameworks>net10.0-desktop;net10.0-windows10.0.19041.0</TargetFrameworks>
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
     <RootNamespace>WinIconFinder</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Platforms>x86;x64;ARM64</Platforms>
-    <RuntimeIdentifiers>win-x86;win-x64;win-arm64</RuntimeIdentifiers>
-    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-$([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture.ToString().ToLowerInvariant())</RuntimeIdentifier>
     <PublishProfile Condition="Exists('Properties\PublishProfiles\win-$(Platform).pubxml')">win-$(Platform).pubxml</PublishProfile>
-    <UseWinUI>true</UseWinUI>
-    <WinUISDKReferences>false</WinUISDKReferences>
-    <EnableMsixTooling>true</EnableMsixTooling>
+    <UnoSingleProject>true</UnoSingleProject>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <UnoFeatures>SkiaRenderer;</UnoFeatures>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+  </ItemGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0-windows10.0.19041.0'">
+    <UseWinUI>true</UseWinUI>
+    <WinUISDKReferences>false</WinUISDKReferences>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <DefineConstants>$(DefineConstants);WINDOWS_APP_SDK</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="obj\**" />
@@ -63,11 +72,10 @@
     Set <EnableWinAppRunSupport>false</EnableWinAppRunSupport> in a
     <PropertyGroup> above to opt out.
   -->
-  <ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0-windows10.0.19041.0'">
     <PackageReference Include="Microsoft.Graphics.Win2D" Version="1.4.0" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.1839" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.1.3" />
-    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools.WinApp" Version="0.3.1">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
@@ -82,6 +90,14 @@
     <Page Update="Controls\CollectionsIcon.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0-desktop'">
+    <PackageReference Include="LeXtudio.Win2D.UnoCompat" Version="0.1.0" />
+  </ItemGroup>
+
+  <ItemGroup Condition="''$(Configuration)' == 'Debug'">
+    <PackageReference Include="LeXtudio.DevFlow.Agent.Uno" Version="0.1.10" />
   </ItemGroup>
 
   <!--

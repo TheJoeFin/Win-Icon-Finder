@@ -1,5 +1,8 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+#if DEBUG
+using LeXtudio.DevFlow.Agent.Uno;
+#endif
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -11,6 +14,9 @@ namespace WinIconFinder;
 /// </summary>
 public partial class App : Application
 {
+#if DEBUG
+    private UnoAgentService? _devFlowAgent;
+#endif
     /// <summary>
     /// The main application window. Use <c>App.Window</c> from any class that needs
     /// the window reference (for dialogs, pickers, interop, etc.).
@@ -46,6 +52,10 @@ public partial class App : Application
     /// <param name="args">Details about the launch request and process.</param>
     protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
     {
+#if DEBUG
+        _devFlowAgent = new UnoAgentService();
+        _devFlowAgent.Start();
+#endif
         Window = new MainWindow();
         DispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
         Window.Activate();
