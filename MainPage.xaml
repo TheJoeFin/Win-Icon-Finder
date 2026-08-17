@@ -117,9 +117,7 @@
                         Margin="8,8,8,4"
                         AutomationProperties.AutomationId="SearchBox"
                         PlaceholderText="Search icons…"
-                        Text="{x:Bind ViewModel.SearchQuery,
-                                      Mode=TwoWay,
-                                      UpdateSourceTrigger=PropertyChanged}" />
+                        Text="{x:Bind ViewModel.SearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
                     <!--  Result count  -->
                     <TextBlock
@@ -127,18 +125,15 @@
                         Margin="12,0,8,4"
                         Opacity="0.6"
                         Style="{StaticResource CaptionTextBlockStyle}"
-                        Text="{x:Bind local:MainPage.FormatCount(ViewModel.FilteredIcons.Count),
-                                      Mode=OneWay}" />
+                        Text="{x:Bind local:MainPage.FormatCount(ViewModel.FilteredIcons.Count), Mode=OneWay}" />
 
                     <!--  Icon list  -->
                     <ListView
                         x:Name="IconListView"
                         Grid.Row="2"
                         AutomationProperties.AutomationId="IconListView"
-                        ItemsSource="{x:Bind ViewModel.FilteredIcons,
-                                             Mode=OneWay}"
-                        SelectedItem="{x:Bind ViewModel.SelectedIcon,
-                                              Mode=TwoWay}"
+                        ItemsSource="{x:Bind ViewModel.FilteredIcons, Mode=OneWay}"
+                        SelectedItem="{x:Bind ViewModel.SelectedIcon, Mode=TwoWay}"
                         SelectionMode="Single">
 
                         <ListView.ItemContainerStyle>
@@ -169,8 +164,7 @@
                                         Background="{ThemeResource AccentFillColorDefaultBrush}"
                                         CornerRadius="{ThemeResource ControlCornerRadius}"
                                         IsHitTestVisible="False"
-                                        Opacity="{x:Bind local:MainPage.MatchOpacity(IsMatch),
-                                                         Mode=OneWay}" />
+                                        Opacity="{x:Bind local:MainPage.MatchOpacity(IsMatch), Mode=OneWay}" />
 
                                     <!--  Glyph preview  -->
                                     <Border
@@ -210,13 +204,11 @@
                                             VerticalAlignment="Center"
                                             Background="{ThemeResource AccentFillColorDefaultBrush}"
                                             CornerRadius="4"
-                                            Visibility="{x:Bind local:MainPage.BoolToVisibility(IsMatch),
-                                                                Mode=OneWay}">
+                                            Visibility="{x:Bind local:MainPage.BoolToVisibility(IsMatch), Mode=OneWay}">
                                             <TextBlock
                                                 Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
                                                 Style="{StaticResource CaptionTextBlockStyle}"
-                                                Text="{x:Bind local:MainPage.FormatScore(MatchScore),
-                                                              Mode=OneWay}" />
+                                                Text="{x:Bind local:MainPage.FormatScore(MatchScore), Mode=OneWay}" />
                                         </Border>
                                         <StackPanel
                                             x:Name="HoverActionsPanel"
@@ -229,8 +221,7 @@
                                                 MinWidth="32"
                                                 AutomationProperties.Name="Favorite icon"
                                                 Click="FavoriteIcon_Click"
-                                                IsChecked="{x:Bind IsFavorite,
-                                                                   Mode=OneWay}"
+                                                IsChecked="{x:Bind IsFavorite, Mode=OneWay}"
                                                 ToolTipService.ToolTip="Toggle favorite in Default collection">
                                                 <Viewbox Height="16">
                                                     <SymbolIcon Symbol="OutlineStar" />
@@ -280,8 +271,7 @@
                             Grid.Column="0"
                             Orientation="Horizontal"
                             Spacing="4"
-                            Visibility="{x:Bind local:MainPage.HasSelectedIcon(ViewModel.SelectedIcon),
-                                                Mode=OneWay}">
+                            Visibility="{x:Bind local:MainPage.HasSelectedIcon(ViewModel.SelectedIcon), Mode=OneWay}">
                             <Button
                                 AutomationProperties.AutomationId="CopyGlyphButton"
                                 AutomationProperties.Name="Copy glyph code"
@@ -345,8 +335,7 @@
                             VerticalAlignment="Center"
                             Opacity="0.7"
                             Style="{StaticResource BodyTextBlockStyle}"
-                            Text="{x:Bind ViewModel.StatusText,
-                                          Mode=OneWay}"
+                            Text="{x:Bind ViewModel.StatusText, Mode=OneWay}"
                             TextTrimming="CharacterEllipsis"
                             TextWrapping="NoWrap" />
 
@@ -443,8 +432,7 @@
                                 AutomationProperties.AutomationId="MirrorMatchToggle"
                                 AutomationProperties.Name="Try match mirrors"
                                 Content="Try mirrors"
-                                IsChecked="{x:Bind ViewModel.TryMatchMirrors,
-                                                   Mode=TwoWay}"
+                                IsChecked="{x:Bind ViewModel.TryMatchMirrors, Mode=TwoWay}"
                                 ToolTipService.ToolTip="Also test horizontally and vertically flipped versions of your sketch to improve matching" />
                         </StackPanel>
                     </Grid>
@@ -532,15 +520,12 @@
                                 x:Name="LoadingText"
                                 HorizontalAlignment="Center"
                                 Style="{StaticResource BodyTextBlockStyle}"
-                                Text="{x:Bind local:MainPage.FormatLoading(ViewModel.LoadingPhase,
-                                              ViewModel.InitProgress),
-                                              Mode=OneWay}" />
+                                Text="{x:Bind local:MainPage.FormatLoading(ViewModel.LoadingPhase, ViewModel.InitProgress), Mode=OneWay}" />
                             <ProgressBar
                                 Width="200"
                                 Maximum="100"
                                 Minimum="0"
-                                Value="{x:Bind ViewModel.InitProgress,
-                                               Mode=OneWay}" />
+                                Value="{x:Bind ViewModel.InitProgress, Mode=OneWay}" />
                         </StackPanel>
                     </Grid>
                 </Grid>
@@ -573,17 +558,14 @@
                         Grid.Column="0"
                         Orientation="Horizontal"
                         Spacing="4"
-                        Visibility="{x:Bind local:MainPage.HasSelectedIcon(ViewModel.MapPivotIcon),
-                                            Mode=OneWay}">
+                        Visibility="{x:Bind local:MainPage.HasSelectedIcon(ViewModel.MapPivotIcon), Mode=OneWay}">
                         <ToggleButton
                             AutomationProperties.AutomationId="MapFavoriteButton"
                             AutomationProperties.Name="Favorite icon"
                             Click="FavoriteIcon_Click"
-                            IsChecked="{x:Bind ViewModel.MapPivotIcon.IsFavorite,
-                                               Mode=OneWay}"
+                            IsChecked="{x:Bind ViewModel.MapPivotIcon.IsFavorite, Mode=OneWay}"
                             Style="{StaticResource CanvasToolbarIconToggleButtonStyle}"
-                            Tag="{x:Bind ViewModel.MapPivotIcon,
-                                         Mode=OneWay}"
+                            Tag="{x:Bind ViewModel.MapPivotIcon, Mode=OneWay}"
                             ToolTipService.ToolTip="Toggle favorite in Default collection">
                             <Viewbox Height="16">
                                 <SymbolIcon Symbol="OutlineStar" />
@@ -594,8 +576,7 @@
                             AutomationProperties.Name="Manage icon collections"
                             Click="ManageCollections_Click"
                             Style="{StaticResource CanvasToolbarIconButtonStyle}"
-                            Tag="{x:Bind ViewModel.MapPivotIcon,
-                                         Mode=OneWay}"
+                            Tag="{x:Bind ViewModel.MapPivotIcon, Mode=OneWay}"
                             ToolTipService.ToolTip="Add or remove this icon from collections">
                             <Viewbox Height="16">
                                 <SymbolIcon Symbol="More" />
@@ -612,8 +593,7 @@
                             Content="&#xE8C8;"
                             FontFamily="{ThemeResource SymbolThemeFontFamily}"
                             Style="{StaticResource CanvasToolbarIconButtonStyle}"
-                            Tag="{x:Bind ViewModel.MapPivotIcon,
-                                         Mode=OneWay}"
+                            Tag="{x:Bind ViewModel.MapPivotIcon, Mode=OneWay}"
                             ToolTipService.ToolTip="Copy glyph code" />
                         <Button
                             AutomationProperties.AutomationId="MapCopyXamlButton"
@@ -622,8 +602,7 @@
                             Content="&#xE943;"
                             FontFamily="{ThemeResource SymbolThemeFontFamily}"
                             Style="{StaticResource CanvasToolbarIconButtonStyle}"
-                            Tag="{x:Bind ViewModel.MapPivotIcon,
-                                         Mode=OneWay}"
+                            Tag="{x:Bind ViewModel.MapPivotIcon, Mode=OneWay}"
                             ToolTipService.ToolTip="Copy as XAML FontIcon" />
                         <Button
                             AutomationProperties.AutomationId="MapCopyPngButton"
@@ -632,8 +611,7 @@
                             Content="&#xEB9F;"
                             FontFamily="{ThemeResource SymbolThemeFontFamily}"
                             Style="{StaticResource CanvasToolbarIconButtonStyle}"
-                            Tag="{x:Bind ViewModel.MapPivotIcon,
-                                         Mode=OneWay}"
+                            Tag="{x:Bind ViewModel.MapPivotIcon, Mode=OneWay}"
                             ToolTipService.ToolTip="Copy as PNG" />
                         <Button
                             AutomationProperties.AutomationId="MapCopySvgButton"
@@ -642,8 +620,7 @@
                             Content="&#xE71B;"
                             FontFamily="{ThemeResource SymbolThemeFontFamily}"
                             Style="{StaticResource CanvasToolbarIconButtonStyle}"
-                            Tag="{x:Bind ViewModel.MapPivotIcon,
-                                         Mode=OneWay}"
+                            Tag="{x:Bind ViewModel.MapPivotIcon, Mode=OneWay}"
                             ToolTipService.ToolTip="Copy as SVG" />
                     </StackPanel>
 
@@ -653,8 +630,7 @@
                         VerticalAlignment="Center"
                         Opacity="0.7"
                         Style="{StaticResource BodyTextBlockStyle}"
-                        Text="{x:Bind ViewModel.MapStatusText,
-                                      Mode=OneWay}"
+                        Text="{x:Bind ViewModel.MapStatusText, Mode=OneWay}"
                         TextTrimming="CharacterEllipsis"
                         TextWrapping="NoWrap" />
 
@@ -723,17 +699,14 @@
                         Margin="12,0,12,8"
                         Opacity="0.6"
                         Style="{StaticResource CaptionTextBlockStyle}"
-                        Text="{x:Bind local:MainPage.FormatCollectionCount(ViewModel.Collections.Count),
-                                      Mode=OneWay}" />
+                        Text="{x:Bind local:MainPage.FormatCollectionCount(ViewModel.Collections.Count), Mode=OneWay}" />
 
                     <ListView
                         x:Name="CollectionsListView"
                         Grid.Row="2"
                         AutomationProperties.AutomationId="CollectionsListView"
-                        ItemsSource="{x:Bind ViewModel.Collections,
-                                             Mode=OneWay}"
-                        SelectedItem="{x:Bind ViewModel.SelectedCollection,
-                                              Mode=TwoWay}"
+                        ItemsSource="{x:Bind ViewModel.Collections, Mode=OneWay}"
+                        SelectedItem="{x:Bind ViewModel.SelectedCollection, Mode=TwoWay}"
                         SelectionMode="Single">
                         <ListView.ItemContainerStyle>
                             <Style BasedOn="{StaticResource DefaultListViewItemStyle}" TargetType="ListViewItem">
@@ -766,8 +739,7 @@
                                         VerticalAlignment="Center"
                                         Background="{ThemeResource AccentFillColorDefaultBrush}"
                                         CornerRadius="4"
-                                        Visibility="{x:Bind local:MainPage.BoolToVisibility(IsDefault),
-                                                            Mode=OneWay}">
+                                        Visibility="{x:Bind local:MainPage.BoolToVisibility(IsDefault), Mode=OneWay}">
                                         <TextBlock
                                             Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
                                             Style="{StaticResource CaptionTextBlockStyle}"
@@ -806,8 +778,7 @@
                             <AppBarButton
                                 AutomationProperties.AutomationId="SaveSelectionToNewCollectionButton"
                                 Click="SaveSelectionToNewCollection_Click"
-                                IsEnabled="{x:Bind local:MainPage.HasSelection(ViewModel.SelectedCollectionIconCount),
-                                                   Mode=OneWay}"
+                                IsEnabled="{x:Bind local:MainPage.HasSelection(ViewModel.SelectedCollectionIconCount), Mode=OneWay}"
                                 Label="Save to new collection">
                                 <AppBarButton.Icon>
                                     <SymbolIcon Symbol="Save" />
@@ -816,8 +787,7 @@
                             <AppBarButton
                                 AutomationProperties.AutomationId="AddSelectionToCollectionButton"
                                 Click="AddSelectionToCollection_Click"
-                                IsEnabled="{x:Bind local:MainPage.HasSelection(ViewModel.SelectedCollectionIconCount),
-                                                   Mode=OneWay}"
+                                IsEnabled="{x:Bind local:MainPage.HasSelection(ViewModel.SelectedCollectionIconCount), Mode=OneWay}"
                                 Label="Add to collection">
                                 <AppBarButton.Icon>
                                     <SymbolIcon Symbol="OpenFile" />
@@ -826,8 +796,7 @@
                             <AppBarButton
                                 AutomationProperties.AutomationId="RemoveSelectionButton"
                                 Click="RemoveSelectionFromCollection_Click"
-                                IsEnabled="{x:Bind local:MainPage.HasSelection(ViewModel.SelectedCollectionIconCount),
-                                                   Mode=OneWay}"
+                                IsEnabled="{x:Bind local:MainPage.HasSelection(ViewModel.SelectedCollectionIconCount), Mode=OneWay}"
                                 Label="Remove from current">
                                 <AppBarButton.Icon>
                                     <SymbolIcon Symbol="Remove" />
@@ -836,8 +805,7 @@
                             <AppBarButton
                                 AutomationProperties.AutomationId="ExportSelectionButton"
                                 Click="ExportSelection_Click"
-                                IsEnabled="{x:Bind local:MainPage.HasSelection(ViewModel.SelectedCollectionIconCount),
-                                                   Mode=OneWay}"
+                                IsEnabled="{x:Bind local:MainPage.HasSelection(ViewModel.SelectedCollectionIconCount), Mode=OneWay}"
                                 Label="Export selected">
                                 <AppBarButton.Icon>
                                     <SymbolIcon Symbol="Share" />
@@ -849,8 +817,7 @@
                             Grid.Row="1"
                             Opacity="0.7"
                             Style="{StaticResource BodyTextBlockStyle}"
-                            Text="{x:Bind ViewModel.CollectionsStatusText,
-                                          Mode=OneWay}"
+                            Text="{x:Bind ViewModel.CollectionsStatusText, Mode=OneWay}"
                             TextTrimming="CharacterEllipsis"
                             TextWrapping="NoWrap" />
                     </Grid>
@@ -860,8 +827,7 @@
                             x:Name="CollectionIconsListView"
                             AutomationProperties.AutomationId="CollectionIconsListView"
                             IsMultiSelectCheckBoxEnabled="True"
-                            ItemsSource="{x:Bind ViewModel.CollectionIcons,
-                                                 Mode=OneWay}"
+                            ItemsSource="{x:Bind ViewModel.CollectionIcons, Mode=OneWay}"
                             SelectionChanged="CollectionIconsListView_SelectionChanged"
                             SelectionMode="Multiple">
                             <ListView.ItemContainerStyle>
@@ -890,8 +856,7 @@
                                             Background="{ThemeResource AccentFillColorDefaultBrush}"
                                             CornerRadius="{ThemeResource ControlCornerRadius}"
                                             IsHitTestVisible="False"
-                                            Opacity="{x:Bind local:MainPage.MatchOpacity(IsMatch),
-                                                             Mode=OneWay}" />
+                                            Opacity="{x:Bind local:MainPage.MatchOpacity(IsMatch), Mode=OneWay}" />
 
                                         <Border
                                             Grid.Column="0"
@@ -942,8 +907,7 @@
                                                 Padding="0"
                                                 AutomationProperties.Name="Favorite icon"
                                                 Click="FavoriteIcon_Click"
-                                                IsChecked="{x:Bind IsFavorite,
-                                                                   Mode=OneWay}"
+                                                IsChecked="{x:Bind IsFavorite, Mode=OneWay}"
                                                 Style="{StaticResource CanvasToolbarIconToggleButtonStyle}"
                                                 ToolTipService.ToolTip="Toggle favorite in Default collection">
                                                 <Viewbox Height="16">
@@ -972,8 +936,7 @@
                             Opacity="0.35"
                             Style="{StaticResource SubtitleTextBlockStyle}"
                             Text="Save icons to a collection, then multi-select them here to export"
-                            Visibility="{x:Bind local:MainPage.ZeroToVisibility(ViewModel.CollectionIcons.Count),
-                                                Mode=OneWay}" />
+                            Visibility="{x:Bind local:MainPage.ZeroToVisibility(ViewModel.CollectionIcons.Count), Mode=OneWay}" />
                     </Grid>
                 </Grid>
             </Grid>
