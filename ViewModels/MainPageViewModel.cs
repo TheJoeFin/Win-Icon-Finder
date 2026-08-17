@@ -290,6 +290,17 @@ public partial class MainViewModel : ObservableObject
         StatusText = $"Copied {SelectedCollectionIconCount} XAML snippet{(SelectedCollectionIconCount == 1 ? "" : "s")}";
     }
 
+    public void CopySelectedCollectionPathIcons()
+    {
+        if (_selectedCollectionIcons.Count == 0)
+        {
+            return;
+        }
+
+        _clipboardService.CopyXamlPathIcons(_selectedCollectionIcons, _matchingService);
+        StatusText = $"Copied {SelectedCollectionIconCount} PathIcon snippet{(SelectedCollectionIconCount == 1 ? "" : "s")}";
+    }
+
     public async Task ExportSelectedCollectionPngsAsync(string folderPath, bool useBlack)
     {
         if (_selectedCollectionIcons.Count == 0)
@@ -469,6 +480,15 @@ public partial class MainViewModel : ObservableObject
         if (SelectedIcon is not null)
         {
             _clipboardService.CopyXamlFontIcon(SelectedIcon);
+        }
+    }
+
+    [RelayCommand]
+    private void CopyAsPathIcon()
+    {
+        if (SelectedIcon is not null)
+        {
+            _clipboardService.CopyXamlPathIcon(SelectedIcon, _matchingService);
         }
     }
 

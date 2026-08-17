@@ -12,6 +12,7 @@ using Windows.Foundation;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using Windows.UI;
+using WinIconFinder.Controls;
 using WinIconFinder.Models;
 using WinIconFinder.Services;
 using WinIconFinder.ViewModels;
@@ -415,6 +416,14 @@ public sealed partial class MainPage : Page
         AutomationProperties.SetAutomationId(copyXaml, "CtxCopyXaml");
         copyXaml.Click += CopyXaml_Click;
 
+        MenuFlyoutItem copyPathIcon = new()
+        {
+            Text = "Copy as XAML PathIcon",
+            Icon = new VectorPathIcon()
+        };
+        AutomationProperties.SetAutomationId(copyPathIcon, "CtxCopyPathIcon");
+        copyPathIcon.Click += CopyPathIcon_Click;
+
         MenuFlyoutItem copyPng = new()
         {
             Text = "Copy as PNG",
@@ -436,6 +445,7 @@ public sealed partial class MainPage : Page
         flyout.Items.Add(new MenuFlyoutSeparator());
         flyout.Items.Add(copyGlyph);
         flyout.Items.Add(copyXaml);
+        flyout.Items.Add(copyPathIcon);
         flyout.Items.Add(new MenuFlyoutSeparator());
         flyout.Items.Add(copyPng);
         flyout.Items.Add(copySvg);
@@ -510,6 +520,17 @@ public sealed partial class MainPage : Page
 
         ViewModel.CopyAsXamlCommand.Execute(null);
         await ShowFontIconTipIfFirstTimeAsync();
+    }
+
+    private async void CopyPathIcon_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TrySelectActionIcon(sender))
+        {
+            return;
+        }
+
+        ViewModel.CopyAsPathIconCommand.Execute(null);
+        await ShowPathIconTipIfFirstTimeAsync();
     }
 
     private async void CopyPng_Click(object sender, RoutedEventArgs e) =>
@@ -793,6 +814,21 @@ public sealed partial class MainPage : Page
             await ShowFontIconTipIfFirstTimeAsync();
         };
 
+        MenuFlyoutItem copyPathIcons = new()
+        {
+            Text = "Copy XAML PathIcons"
+        };
+        copyPathIcons.Click += async (_, _) =>
+        {
+            if (ViewModel.SelectedCollectionIconCount == 0)
+            {
+                return;
+            }
+
+            ViewModel.CopySelectedCollectionPathIcons();
+            await ShowPathIconTipIfFirstTimeAsync();
+        };
+
         MenuFlyoutItem exportPng = new()
         {
             Text = "Export PNG files…"
@@ -808,6 +844,7 @@ public sealed partial class MainPage : Page
         flyout.Items.Add(copyGlyphs);
         flyout.Items.Add(copyGlyphsForXaml);
         flyout.Items.Add(copyXaml);
+        flyout.Items.Add(copyPathIcons);
         flyout.Items.Add(new MenuFlyoutSeparator());
         flyout.Items.Add(exportPng);
         flyout.Items.Add(exportSvg);
@@ -961,6 +998,112 @@ public sealed partial class MainPage : Page
         ContentDialog dialog = new()
         {
             Title = "Copied — remember to ship the font",
+            Content = new ScrollViewer
+            {
+                Content = panel,
+                HorizontalScrollMode = ScrollMode.Disabled,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                MaxHeight = 460
+            },
+            CloseButtonText = "Got it",
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = XamlRoot
+        };
+
+        await dialog.ShowAsync();
+    }
+
+    /// <summary>
+    /// A PathIcon carries its own outline, so unlike the FontIcon snippet it needs
+    /// no font shipped alongside it — but the geometry does not scale with the
+    /// control. Explain both points once, the first time the user copies one.
+    /// </summary>
+    private async Task ShowPathIconTipIfFirstTimeAsync()
+    {
+        if (!_tips.ShouldShowPathIconTip())
+        {
+            return;
+        }
+
+        await ShowPathIconSizingTipAsync();
+    }
+
+    private async Task ShowPathIconSizingTipAsync()
+    {
+        StackPanel panel = new() { Spacing = 12, MaxWidth = 460 };
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = "The snippet holds the glyph outline as vector path data, so it renders "
+                 + "anywhere XAML does — no icon font to ship, no missing-glyph boxes.",
+            TextWrapping = TextWrapping.Wrap
+        });
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = "Where it goes",
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            TextWrapping = TextWrapping.Wrap
+        });
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = "Paste it into any IconElement slot — AppBarButton.Icon, "
+                 + "NavigationViewItem.Icon, MenuFlyoutItem.Icon, and so on:",
+            TextWrapping = TextWrapping.Wrap
+        });
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = """
+                   <AppBarButton Label="Save">
+                     <AppBarButton.Icon>
+                       <PathIcon Data="F1 M…" />
+                     </AppBarButton.Icon>
+                   </AppBarButton>
+                   """,
+            FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas"),
+            IsTextSelectionEnabled = true,
+            TextWrapping = TextWrapping.Wrap
+        });
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = "Sizing",
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            TextWrapping = TextWrapping.Wrap
+        });
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = "PathIcon draws its geometry at the coordinates you give it, so the data is "
+                 + "scaled to a 16×16 box — the standard icon size. To render it larger, wrap "
+                 + "it in a Viewbox rather than editing the numbers:",
+            TextWrapping = TextWrapping.Wrap
+        });
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = """
+                   <Viewbox Width="32" Height="32">
+                     <PathIcon Data="F1 M…" />
+                   </Viewbox>
+                   """,
+            FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas"),
+            IsTextSelectionEnabled = true,
+            TextWrapping = TextWrapping.Wrap
+        });
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = "The icon picks up the surrounding Foreground, so it follows your theme "
+                 + "the same way a FontIcon does.",
+            TextWrapping = TextWrapping.Wrap
+        });
+
+        ContentDialog dialog = new()
+        {
+            Title = "Copied — self-contained vector icon",
             Content = new ScrollViewer
             {
                 Content = panel,

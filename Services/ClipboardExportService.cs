@@ -50,6 +50,29 @@ public partial class ClipboardExportService
         SetText(text);
     }
 
+    /// <summary>
+    /// Copies a WinUI 3 PathIcon XAML snippet holding the glyph outline as vector
+    /// path data, so the consuming app needs no icon font at all.
+    /// </summary>
+    public void CopyXamlPathIcon(FluentIcon icon, IconMatchingService matchingService)
+    {
+        SetText(BuildPathIconMarkup(icon, matchingService));
+    }
+
+    public void CopyXamlPathIcons(IEnumerable<FluentIcon> icons, IconMatchingService matchingService)
+    {
+        string text = string.Join(
+            Environment.NewLine,
+            icons
+                .OrderBy(icon => icon.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .Select(icon => BuildPathIconMarkup(icon, matchingService)));
+
+        SetText(text);
+    }
+
+    private static string BuildPathIconMarkup(FluentIcon icon, IconMatchingService matchingService) =>
+        $"""<PathIcon Data="{matchingService.GetGlyphPathData(icon)}" />""";
+
     /// <summary>Renders the icon to 256×256 PNG and copies it as a bitmap.</summary>
     public async Task CopyPngAsync(FluentIcon icon, IconMatchingService matchingService, bool useBlack = true)
     {

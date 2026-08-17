@@ -425,6 +425,59 @@ public partial class IconMatchingService
     /// </summary>
     public string GetGlyphSvg(FluentIcon icon)
     {
+        using CanvasGeometry geometry = CreateGlyphGeometry(icon);
+
+        Rect bounds = geometry.ComputeBounds();
+        PathDataReceiver receiver = new();
+        geometry.SendPathTo(receiver);
+
+        string vb = string.Create(CultureInfo.InvariantCulture,
+            $"{bounds.X:F3} {bounds.Y:F3} {bounds.Width:F3} {bounds.Height:F3}");
+
+        return $"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="{vb}"><path fill="currentColor" d="{receiver}"/></svg>""";
+    }
+
+    // -------------------------------------------------------------------------
+    // XAML PathIcon export
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Extracts the glyph outline as XAML path mini-language, uniformly scaled
+    /// and centred inside a <paramref name="targetSize"/> square starting at the
+    /// origin. <see cref="Microsoft.UI.Xaml.Controls.PathIcon"/> never scales its
+    /// geometry, so the data has to arrive at the size it is meant to render at.
+    /// </summary>
+    public string GetGlyphPathData(FluentIcon icon, float targetSize = 16f)
+    {
+        using CanvasGeometry geometry = CreateGlyphGeometry(icon);
+
+        Rect bounds = geometry.ComputeBounds();
+        if (bounds.Width <= 0 || bounds.Height <= 0)
+        {
+            return string.Empty;
+        }
+
+        // Fit the longer side, then centre the shorter one in the square.
+        float scale = targetSize / (float)Math.Max(bounds.Width, bounds.Height);
+        Matrix3x2 transform =
+            Matrix3x2.CreateTranslation((float)-bounds.X, (float)-bounds.Y) *
+            Matrix3x2.CreateScale(scale) *
+            Matrix3x2.CreateTranslation(
+                (targetSize - (float)bounds.Width * scale) / 2f,
+                (targetSize - (float)bounds.Height * scale) / 2f);
+
+        using CanvasGeometry normalized = geometry.Transform(transform);
+
+        PathDataReceiver receiver = new();
+        normalized.SendPathTo(receiver);
+
+        // F1 = nonzero winding, matching how the font outline defines its holes.
+        return $"F1 {receiver}";
+    }
+
+    /// <summary>Lays the glyph out on a 512×512 canvas and captures its outline.</summary>
+    private CanvasGeometry CreateGlyphGeometry(FluentIcon icon)
+    {
         const float layoutSize = 512f;
         CanvasDevice device = _device ?? CanvasDevice.GetSharedDevice();
 
@@ -436,16 +489,7 @@ public partial class IconMatchingService
             VerticalAlignment = CanvasVerticalAlignment.Center
         };
         using CanvasTextLayout tl = new(device, icon.GlyphChar.ToString(), tf, layoutSize, layoutSize);
-        using CanvasGeometry geometry = CanvasGeometry.CreateText(tl);
-
-        Rect bounds = geometry.ComputeBounds();
-        SvgPathReceiver receiver = new();
-        geometry.SendPathTo(receiver);
-
-        string vb = string.Create(CultureInfo.InvariantCulture,
-            $"{bounds.X:F3} {bounds.Y:F3} {bounds.Width:F3} {bounds.Height:F3}");
-
-        return $"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="{vb}"><path fill="currentColor" d="{receiver}"/></svg>""";
+        return CanvasGeometry.CreateText(tl);
     }
 
     // -------------------------------------------------------------------------
@@ -481,14 +525,16 @@ public partial class IconMatchingService
     }
 
     // -------------------------------------------------------------------------
-    // SVG path receiver
+    // Path receiver
     // -------------------------------------------------------------------------
 
     /// <summary>
     /// Implements <see cref="ICanvasPathReceiver"/> to serialize a Win2D
-    /// <see cref="CanvasGeometry"/> into an SVG path <c>d</c> attribute string.
+    /// <see cref="CanvasGeometry"/> into path data. The command set is common to
+    /// the SVG <c>d</c> attribute and the XAML path mini-language, so the same
+    /// output serves both exports.
     /// </summary>
-    private sealed partial class SvgPathReceiver : ICanvasPathReceiver
+    private sealed partial class PathDataReceiver : ICanvasPathReceiver
     {
         private readonly StringBuilder _sb = new();
 

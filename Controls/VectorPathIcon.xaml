@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<PathIcon
+    x:Class="WinIconFinder.Controls.VectorPathIcon"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="using:WinIconFinder.Controls"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+    <!--  An outlined hexagon — a vector shape, drawn by the very control it stands for.  -->
+    <PathIcon.Data>
+        M8,1 L14.06,4.5 L14.06,11.5 L8,15 L1.94,11.5 L1.94,4.5 Z
+        M8,2.8 L12.5,5.4 L12.5,10.6 L8,13.2 L3.5,10.6 L3.5,5.4 Z
+    </PathIcon.Data>
+</PathIcon>

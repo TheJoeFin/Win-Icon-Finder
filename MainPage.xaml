@@ -289,6 +289,16 @@
                                 Style="{StaticResource CanvasToolbarIconButtonStyle}"
                                 ToolTipService.ToolTip="Copy as XAML FontIcon" />
                             <Button
+                                AutomationProperties.AutomationId="CopyPathIconButton"
+                                AutomationProperties.Name="Copy XAML PathIcon"
+                                Click="CopyPathIcon_Click"
+                                Style="{StaticResource CanvasToolbarIconButtonStyle}"
+                                ToolTipService.ToolTip="Copy as XAML PathIcon (no font needed)">
+                                <Viewbox Height="16">
+                                    <controls:VectorPathIcon />
+                                </Viewbox>
+                            </Button>
+                            <Button
                                 AutomationProperties.AutomationId="CopyPngButton"
                                 AutomationProperties.Name="Copy PNG"
                                 Click="CopyPng_Click"
@@ -604,6 +614,17 @@
                             Style="{StaticResource CanvasToolbarIconButtonStyle}"
                             Tag="{x:Bind ViewModel.MapPivotIcon, Mode=OneWay}"
                             ToolTipService.ToolTip="Copy as XAML FontIcon" />
+                        <Button
+                            AutomationProperties.AutomationId="MapCopyPathIconButton"
+                            AutomationProperties.Name="Copy XAML PathIcon"
+                            Click="CopyPathIcon_Click"
+                            Style="{StaticResource CanvasToolbarIconButtonStyle}"
+                            Tag="{x:Bind ViewModel.MapPivotIcon, Mode=OneWay}"
+                            ToolTipService.ToolTip="Copy as XAML PathIcon (no font needed)">
+                            <Viewbox Height="16">
+                                <controls:VectorPathIcon />
+                            </Viewbox>
+                        </Button>
                         <Button
                             AutomationProperties.AutomationId="MapCopyPngButton"
                             AutomationProperties.Name="Copy PNG"

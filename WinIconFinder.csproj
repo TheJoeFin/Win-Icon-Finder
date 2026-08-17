@@ -23,6 +23,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Remove="Controls\CollectionsIcon.xaml" />
+    <None Remove="Controls\VectorPathIcon.xaml" />
   </ItemGroup>
 
   <ItemGroup>
@@ -80,6 +81,9 @@
   </ItemGroup>
   <ItemGroup>
     <Page Update="Controls\CollectionsIcon.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Update="Controls\VectorPathIcon.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
   </ItemGroup>
