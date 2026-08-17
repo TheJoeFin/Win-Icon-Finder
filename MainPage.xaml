@@ -283,7 +283,7 @@
                             <Button
                                 AutomationProperties.AutomationId="CopyXamlButton"
                                 AutomationProperties.Name="Copy XAML FontIcon"
-                                Command="{x:Bind ViewModel.CopyAsXamlCommand}"
+                                Click="CopyXaml_Click"
                                 Content="&#xE943;"
                                 FontFamily="{ThemeResource SymbolThemeFontFamily}"
                                 Style="{StaticResource CanvasToolbarIconButtonStyle}"

@@ -23,6 +23,9 @@ public sealed partial class MainPage : Page
 {
     public MainViewModel ViewModel { get; } = new();
 
+    // One-time tips (e.g. "ship the font with your app" after the first FontIcon copy)
+    private readonly UserTipsService _tips = new();
+
     // Debounce timer: fires 500 ms after the last pointer movement
     private readonly DispatcherTimer _debounceTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
 
@@ -498,8 +501,16 @@ public sealed partial class MainPage : Page
         ViewModel.CopyAsGlyphCommand.Execute(result == ContentDialogResult.Secondary);
     }
 
-    private void CopyXaml_Click(object sender, RoutedEventArgs e) =>
-        ExecuteCopyAction(sender, () => ViewModel.CopyAsXamlCommand.Execute(null));
+    private async void CopyXaml_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TrySelectActionIcon(sender))
+        {
+            return;
+        }
+
+        ViewModel.CopyAsXamlCommand.Execute(null);
+        await ShowFontIconTipIfFirstTimeAsync();
+    }
 
     private async void CopyPng_Click(object sender, RoutedEventArgs e) =>
         await CopyPngWithColorChoiceAsync(sender);
@@ -771,7 +782,16 @@ public sealed partial class MainPage : Page
         {
             Text = "Copy XAML FontIcons"
         };
-        copyXaml.Click += (_, _) => ViewModel.CopySelectedCollectionXaml();
+        copyXaml.Click += async (_, _) =>
+        {
+            if (ViewModel.SelectedCollectionIconCount == 0)
+            {
+                return;
+            }
+
+            ViewModel.CopySelectedCollectionXaml();
+            await ShowFontIconTipIfFirstTimeAsync();
+        };
 
         MenuFlyoutItem exportPng = new()
         {
@@ -843,6 +863,117 @@ public sealed partial class MainPage : Page
         }
 
         await ViewModel.ExportSelectedCollectionSvgsAsync(folderPath);
+    }
+
+    /// <summary>
+    /// The copied FontIcon snippet points at an ms-appx font URI, which only
+    /// resolves if the consuming app ships the TTF itself. Explain that once,
+    /// the first time the user copies such a snippet.
+    /// </summary>
+    private async Task ShowFontIconTipIfFirstTimeAsync()
+    {
+        if (!_tips.ShouldShowFontIconTip())
+        {
+            return;
+        }
+
+        await ShowFontIconShippingTipAsync();
+    }
+
+    private async Task ShowFontIconShippingTipAsync()
+    {
+        StackPanel panel = new() { Spacing = 12, MaxWidth = 460 };
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = "The snippet references the Fluent System Icons font by package URI:",
+            TextWrapping = TextWrapping.Wrap
+        });
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = IconMatchingService.FontUri,
+            FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas"),
+            IsTextSelectionEnabled = true,
+            TextWrapping = TextWrapping.Wrap
+        });
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = "This font is not installed with Windows, so you have to ship it with your "
+                 + "app — otherwise the glyph renders as an empty box on other machines.",
+            TextWrapping = TextWrapping.Wrap
+        });
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = "Where to put it",
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            TextWrapping = TextWrapping.Wrap
+        });
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = "Copy FluentSystemIcons-Regular.ttf into your project's Assets folder and "
+                 + "include it in your .csproj so it lands in the package:",
+            TextWrapping = TextWrapping.Wrap
+        });
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = """
+                   <Content Include="Assets\FluentSystemIcons-Regular.ttf">
+                     <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+                   </Content>
+                   """,
+            FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas"),
+            IsTextSelectionEnabled = true,
+            TextWrapping = TextWrapping.Wrap
+        });
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = "If you put the font somewhere else, adjust the path in the FontFamily URI to match.",
+            TextWrapping = TextWrapping.Wrap
+        });
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = "Where to get it",
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            TextWrapping = TextWrapping.Wrap
+        });
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = "Download it from Microsoft's Fluent System Icons repo (MIT licensed), "
+                 + "under fonts/FluentSystemIcons-Regular.ttf:",
+            TextWrapping = TextWrapping.Wrap
+        });
+
+        panel.Children.Add(new HyperlinkButton
+        {
+            Content = "github.com/microsoft/fluentui-system-icons",
+            NavigateUri = new Uri("https://github.com/microsoft/fluentui-system-icons/tree/main/fonts"),
+            Padding = new Thickness(0)
+        });
+
+        ContentDialog dialog = new()
+        {
+            Title = "Copied — remember to ship the font",
+            Content = new ScrollViewer
+            {
+                Content = panel,
+                HorizontalScrollMode = ScrollMode.Disabled,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                MaxHeight = 460
+            },
+            CloseButtonText = "Got it",
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = XamlRoot
+        };
+
+        await dialog.ShowAsync();
     }
 
     private async Task<bool?> PromptForPngColorChoiceAsync()
