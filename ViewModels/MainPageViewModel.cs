@@ -18,6 +18,9 @@ public partial class MainViewModel : ObservableObject
 
     private Dictionary<string, FluentIcon> _iconsByName = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Per-session random ordering used when nothing has been searched for yet.</summary>
+    private readonly Dictionary<string, int> _shuffleRanks = new(StringComparer.OrdinalIgnoreCase);
+
     [ObservableProperty]
     public partial IReadOnlyList<FluentIcon> AllIcons { get; set; } = [];
 
@@ -121,6 +124,7 @@ public partial class MainViewModel : ObservableObject
             await _iconsService.LoadAsync();
             AllIcons = _iconsService.Icons;
             _iconsByName = AllIcons.ToDictionary(icon => icon.Name, StringComparer.OrdinalIgnoreCase);
+            AssignShuffleRanks();
 
             await _collectionsService.LoadAsync();
             SynchronizeCollectionState();
@@ -143,6 +147,26 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnSearchQueryChanged(string value) => ApplyFilter();
 
+    /// <summary>
+    /// Gives every icon a random rank once per session so the browse grid opens on a
+    /// different slice of the icon set each launch, while staying stable while the app runs.
+    /// </summary>
+    private void AssignShuffleRanks()
+    {
+        _shuffleRanks.Clear();
+
+        string[] names = [.. AllIcons.Select(icon => icon.Name)];
+        Random.Shared.Shuffle(names);
+
+        for (int rank = 0; rank < names.Length; rank++)
+        {
+            _shuffleRanks[names[rank]] = rank;
+        }
+    }
+
+    private int ShuffleRankOf(FluentIcon icon) =>
+        _shuffleRanks.TryGetValue(icon.Name, out int rank) ? rank : int.MaxValue;
+
     private void ApplyFilter()
     {
         FluentIcon? previousSelected = SelectedIcon;
@@ -154,9 +178,15 @@ public partial class MainViewModel : ObservableObject
             .Where(icon => string.IsNullOrEmpty(query)
                 || icon.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase));
 
-        IOrderedEnumerable<FluentIcon> sorted = filtered
-            .OrderByDescending(icon => icon.MatchScore)
-            .ThenBy(icon => icon.DisplayName, StringComparer.OrdinalIgnoreCase);
+        // Without a text query the grid is just a browse surface, so shuffle it; typed
+        // searches stay alphabetical so results are predictable.
+        IOrderedEnumerable<FluentIcon> sorted = string.IsNullOrEmpty(query)
+            ? filtered
+                .OrderByDescending(icon => icon.MatchScore)
+                .ThenBy(ShuffleRankOf)
+            : filtered
+                .OrderByDescending(icon => icon.MatchScore)
+                .ThenBy(icon => icon.DisplayName, StringComparer.OrdinalIgnoreCase);
 
         foreach (FluentIcon icon in sorted)
         {
