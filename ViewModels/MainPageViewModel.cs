@@ -342,14 +342,14 @@ public partial class MainViewModel : ObservableObject
         StatusText = $"Exported {SelectedCollectionIconCount} PNG file{(SelectedCollectionIconCount == 1 ? "" : "s")}";
     }
 
-    public async Task ExportSelectedCollectionSvgsAsync(string folderPath)
+    public async Task ExportSelectedCollectionSvgsAsync(string folderPath, bool useBlack)
     {
         if (_selectedCollectionIcons.Count == 0)
         {
             return;
         }
 
-        await _collectionExportService.ExportSvgsAsync(_selectedCollectionIcons, _matchingService, folderPath);
+        await _collectionExportService.ExportSvgsAsync(_selectedCollectionIcons, _matchingService, folderPath, useBlack);
         StatusText = $"Exported {SelectedCollectionIconCount} SVG file{(SelectedCollectionIconCount == 1 ? "" : "s")}";
     }
 
@@ -536,11 +536,11 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void CopyAsSvg()
+    private void CopyAsSvg(bool useBlack = true)
     {
         if (SelectedIcon is not null)
         {
-            _clipboardService.CopySvg(SelectedIcon, _matchingService);
+            _clipboardService.CopySvg(SelectedIcon, _matchingService, useBlack);
         }
     }
 

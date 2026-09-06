@@ -429,9 +429,8 @@ public partial class IconMatchingService
     /// <summary>
     /// Extracts the glyph outline directly from the font via Win2D path geometry
     /// and returns a self-contained SVG string with real vector path data.
-    /// Uses <c>fill="currentColor"</c> so the icon is theme-aware in Figma etc.
     /// </summary>
-    public string GetGlyphSvg(FluentIcon icon)
+    public string GetGlyphSvg(FluentIcon icon, bool useBlack = true)
     {
         using CanvasGeometry geometry = CreateGlyphGeometry(icon);
 
@@ -441,8 +440,9 @@ public partial class IconMatchingService
 
         string vb = string.Create(CultureInfo.InvariantCulture,
             $"{bounds.X:F3} {bounds.Y:F3} {bounds.Width:F3} {bounds.Height:F3}");
+        string fill = useBlack ? "#000000" : "#FFFFFF";
 
-        return $"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="{vb}"><path fill="currentColor" d="{receiver}"/></svg>""";
+        return $"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="{vb}"><path fill="{fill}" d="{receiver}"/></svg>""";
     }
 
     // -------------------------------------------------------------------------

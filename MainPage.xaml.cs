@@ -49,7 +49,9 @@ public sealed partial class MainPage : Page
     private int _mapHoveredIndex = -1;   // index into LayoutService.Positions
     private int _mapPivotIconIdx = -1;   // index into AllIcons / GlyphVectors
     private float[]? _mapSimilarities;   // [iconIdx] → cosine similarity to pivot
+    private bool _isInitialMapScaleApplied;
     private const float MapCellSize = 26f; // logical pixels per grid cell at scale=1
+    private const float InitialMapZoomFactor = 3f;
 
     // Multi-touch pinch-to-zoom state
     private readonly Dictionary<uint, Point> _mapActivePointers = [];
@@ -97,7 +99,10 @@ public sealed partial class MainPage : Page
             }
             // Refresh map as soon as loading finishes (avoids "not ready" guard hit)
             if (e.PropertyName == nameof(ViewModel.IsBusy) && !ViewModel.IsBusy)
+            {
+                ApplyInitialMapScale();
                 MapCanvas.Invalidate();
+            }
             if (e.PropertyName == nameof(ViewModel.SelectedCollection))
                 CollectionIconsListView.SelectedItems.Clear();
         };
@@ -298,13 +303,9 @@ public sealed partial class MainPage : Page
 
         MenuFlyoutSubItem collections = BuildCollectionsSubMenu(icon);
 
-        MenuFlyoutItem copyGlyph = new()
-        {
-            Text = "Copy glyph code",
-            Icon = new FontIcon { Glyph = "\uE8C8" }
-        };
+        MenuFlyoutSubItem copyGlyph = BuildGlyphCopySubMenu();
+        copyGlyph.Icon = new FontIcon { Glyph = "\uE8C8" };
         AutomationProperties.SetAutomationId(copyGlyph, "CtxCopyGlyph");
-        copyGlyph.Click += CopyGlyph_Click;
 
         MenuFlyoutItem copyXaml = new()
         {
@@ -322,21 +323,13 @@ public sealed partial class MainPage : Page
         AutomationProperties.SetAutomationId(copyPathIcon, "CtxCopyPathIcon");
         copyPathIcon.Click += CopyPathIcon_Click;
 
-        MenuFlyoutItem copyPng = new()
-        {
-            Text = "Copy as PNG",
-            Icon = new FontIcon { Glyph = "\uEB9F" }
-        };
+        MenuFlyoutSubItem copyPng = BuildPngCopySubMenu();
+        copyPng.Icon = new FontIcon { Glyph = "\uEB9F" };
         AutomationProperties.SetAutomationId(copyPng, "CtxCopyPng");
-        copyPng.Click += CopyPng_Click;
 
-        MenuFlyoutItem copySvg = new()
-        {
-            Text = "Copy as SVG",
-            Icon = new FontIcon { Glyph = "\uE71B" }
-        };
+        MenuFlyoutSubItem copySvg = BuildSvgCopySubMenu();
+        copySvg.Icon = new FontIcon { Glyph = "\uE71B" };
         AutomationProperties.SetAutomationId(copySvg, "CtxCopySvg");
-        copySvg.Click += CopySvg_Click;
 
         flyout.Items.Add(favorite);
         flyout.Items.Add(collections);
@@ -382,31 +375,35 @@ public sealed partial class MainPage : Page
         return collections;
     }
 
-    private async void CopyGlyph_Click(object sender, RoutedEventArgs e) =>
-        await CopyGlyphWithFormatAsync(sender);
-
-    private async Task CopyGlyphWithFormatAsync(object sender)
+    private void CopyGlyph_Click(object sender, RoutedEventArgs e)
     {
-        if (!TrySelectActionIcon(sender))
+        if (sender is FrameworkElement element && TrySelectActionIcon(sender))
         {
-            return;
+            BuildGlyphCopyFlyout().ShowAt(element);
         }
+    }
 
-        ContentDialog dialog = new()
-        {
-            Title = "Glyph code format",
-            Content = "Choose the format for the glyph code.",
-            PrimaryButtonText = "C# (\\uXXXX)",
-            SecondaryButtonText = "XAML (&#xXXXX;)",
-            CloseButtonText = "Cancel",
-            DefaultButton = ContentDialogButton.Primary,
-            XamlRoot = XamlRoot
-        };
+    private MenuFlyout BuildGlyphCopyFlyout()
+    {
+        MenuFlyout flyout = new();
+        flyout.Items.Add(CreateGlyphCopyItem("C# (\\uXXXX)", useXaml: false));
+        flyout.Items.Add(CreateGlyphCopyItem("XAML (&#xXXXX;)", useXaml: true));
+        return flyout;
+    }
 
-        ContentDialogResult result = await dialog.ShowAsync();
-        if (result == ContentDialogResult.None) return;
+    private MenuFlyoutSubItem BuildGlyphCopySubMenu()
+    {
+        MenuFlyoutSubItem subMenu = new() { Text = "Copy glyph code" };
+        subMenu.Items.Add(CreateGlyphCopyItem("C# (\\uXXXX)", useXaml: false));
+        subMenu.Items.Add(CreateGlyphCopyItem("XAML (&#xXXXX;)", useXaml: true));
+        return subMenu;
+    }
 
-        ViewModel.CopyAsGlyphCommand.Execute(result == ContentDialogResult.Secondary);
+    private MenuFlyoutItem CreateGlyphCopyItem(string text, bool useXaml)
+    {
+        MenuFlyoutItem item = new() { Text = text };
+        item.Click += (_, _) => ViewModel.CopyAsGlyphCommand.Execute(useXaml);
+        return item;
     }
 
     private async void CopyXaml_Click(object sender, RoutedEventArgs e)
@@ -431,24 +428,67 @@ public sealed partial class MainPage : Page
         await ShowPathIconTipIfFirstTimeAsync();
     }
 
-    private async void CopyPng_Click(object sender, RoutedEventArgs e) =>
-        await CopyPngWithColorChoiceAsync(sender);
-
-    private async Task CopyPngWithColorChoiceAsync(object sender)
+    private void CopyPng_Click(object sender, RoutedEventArgs e)
     {
-        if (!TrySelectActionIcon(sender))
+        if (sender is FrameworkElement element && TrySelectActionIcon(sender))
         {
-            return;
+            BuildPngCopyFlyout().ShowAt(element);
         }
-
-        bool? useBlack = await PromptForPngColorChoiceAsync();
-        if (!useBlack.HasValue) return;
-
-        await ViewModel.CopyAsPngCommand.ExecuteAsync(useBlack.Value);
     }
 
-    private void CopySvg_Click(object sender, RoutedEventArgs e) =>
-        ExecuteCopyAction(sender, () => ViewModel.CopyAsSvgCommand.Execute(null));
+    private MenuFlyout BuildPngCopyFlyout()
+    {
+        MenuFlyout flyout = new();
+        flyout.Items.Add(CreatePngCopyItem("Black", useBlack: true));
+        flyout.Items.Add(CreatePngCopyItem("White", useBlack: false));
+        return flyout;
+    }
+
+    private MenuFlyoutSubItem BuildPngCopySubMenu()
+    {
+        MenuFlyoutSubItem subMenu = new() { Text = "Copy as PNG" };
+        subMenu.Items.Add(CreatePngCopyItem("Black", useBlack: true));
+        subMenu.Items.Add(CreatePngCopyItem("White", useBlack: false));
+        return subMenu;
+    }
+
+    private MenuFlyoutItem CreatePngCopyItem(string text, bool useBlack)
+    {
+        MenuFlyoutItem item = new() { Text = text };
+        item.Click += async (_, _) => await ViewModel.CopyAsPngCommand.ExecuteAsync(useBlack);
+        return item;
+    }
+
+    private void CopySvg_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement element && TrySelectActionIcon(sender))
+        {
+            BuildSvgCopyFlyout().ShowAt(element);
+        }
+    }
+
+    private MenuFlyout BuildSvgCopyFlyout()
+    {
+        MenuFlyout flyout = new();
+        flyout.Items.Add(CreateSvgCopyItem("Black", useBlack: true));
+        flyout.Items.Add(CreateSvgCopyItem("White", useBlack: false));
+        return flyout;
+    }
+
+    private MenuFlyoutSubItem BuildSvgCopySubMenu()
+    {
+        MenuFlyoutSubItem subMenu = new() { Text = "Copy as SVG" };
+        subMenu.Items.Add(CreateSvgCopyItem("Black", useBlack: true));
+        subMenu.Items.Add(CreateSvgCopyItem("White", useBlack: false));
+        return subMenu;
+    }
+
+    private MenuFlyoutItem CreateSvgCopyItem(string text, bool useBlack)
+    {
+        MenuFlyoutItem item = new() { Text = text };
+        item.Click += (_, _) => ViewModel.CopyAsSvgCommand.Execute(useBlack);
+        return item;
+    }
 
     // -------------------------------------------------------------------------
     // Mode switch
@@ -463,6 +503,8 @@ public sealed partial class MainPage : Page
             CollectionsPanel.Visibility = Visibility.Collapsed;
             ViewModel.IsMapMode = true;
 
+            ApplyInitialMapScale();
+
             if (ViewModel.SelectedIcon is FluentIcon selectedIcon &&
                 TryGetLayoutPositionIndex(selectedIcon, out int positionIndex))
             {
@@ -471,8 +513,6 @@ public sealed partial class MainPage : Page
             else
             {
                 MapHintText.Visibility = _mapPivotIconIdx >= 0 ? Visibility.Collapsed : Visibility.Visible;
-                if (_mapPivotIconIdx < 0)
-                    FitGridToCanvas();
                 MapCanvas.Invalidate();
             }
         }
@@ -736,17 +776,19 @@ public sealed partial class MainPage : Page
             await ShowPathIconTipIfFirstTimeAsync();
         };
 
-        MenuFlyoutItem exportPng = new()
+        MenuFlyoutSubItem exportPng = new()
         {
             Text = "Export PNG files…"
         };
-        exportPng.Click += async (_, _) => await ExportSelectedPngsAsync();
+        exportPng.Items.Add(CreatePngExportItem("Black", useBlack: true));
+        exportPng.Items.Add(CreatePngExportItem("White", useBlack: false));
 
-        MenuFlyoutItem exportSvg = new()
+        MenuFlyoutSubItem exportSvg = new()
         {
             Text = "Export SVG files…"
         };
-        exportSvg.Click += async (_, _) => await ExportSelectedSvgsAsync();
+        exportSvg.Items.Add(CreateSvgExportItem("Black", useBlack: true));
+        exportSvg.Items.Add(CreateSvgExportItem("White", useBlack: false));
 
         flyout.Items.Add(copyGlyphs);
         flyout.Items.Add(copyGlyphsForXaml);
@@ -781,24 +823,14 @@ public sealed partial class MainPage : Page
         }
     }
 
-    private async Task ExportSelectedPngsAsync()
+    private MenuFlyoutItem CreatePngExportItem(string text, bool useBlack)
     {
-        string? folderPath = await PickFolderPathAsync();
-        if (folderPath is null)
-        {
-            return;
-        }
-
-        bool? useBlack = await PromptForPngColorChoiceAsync();
-        if (!useBlack.HasValue)
-        {
-            return;
-        }
-
-        await ViewModel.ExportSelectedCollectionPngsAsync(folderPath, useBlack.Value);
+        MenuFlyoutItem item = new() { Text = text };
+        item.Click += async (_, _) => await ExportSelectedPngsAsync(useBlack);
+        return item;
     }
 
-    private async Task ExportSelectedSvgsAsync()
+    private async Task ExportSelectedPngsAsync(bool useBlack)
     {
         string? folderPath = await PickFolderPathAsync();
         if (folderPath is null)
@@ -806,7 +838,25 @@ public sealed partial class MainPage : Page
             return;
         }
 
-        await ViewModel.ExportSelectedCollectionSvgsAsync(folderPath);
+        await ViewModel.ExportSelectedCollectionPngsAsync(folderPath, useBlack);
+    }
+
+    private MenuFlyoutItem CreateSvgExportItem(string text, bool useBlack)
+    {
+        MenuFlyoutItem item = new() { Text = text };
+        item.Click += async (_, _) => await ExportSelectedSvgsAsync(useBlack);
+        return item;
+    }
+
+    private async Task ExportSelectedSvgsAsync(bool useBlack)
+    {
+        string? folderPath = await PickFolderPathAsync();
+        if (folderPath is null)
+        {
+            return;
+        }
+
+        await ViewModel.ExportSelectedCollectionSvgsAsync(folderPath, useBlack);
     }
 
     /// <summary>
@@ -1024,28 +1074,6 @@ public sealed partial class MainPage : Page
         };
 
         await dialog.ShowAsync();
-    }
-
-    private async Task<bool?> PromptForPngColorChoiceAsync()
-    {
-        ContentDialog dialog = new()
-        {
-            Title = "PNG icon color",
-            Content = "Choose the icon color (on a transparent background).",
-            PrimaryButtonText = "Black",
-            SecondaryButtonText = "White",
-            CloseButtonText = "Cancel",
-            DefaultButton = ContentDialogButton.Primary,
-            XamlRoot = XamlRoot
-        };
-
-        ContentDialogResult result = await dialog.ShowAsync();
-        if (result == ContentDialogResult.None)
-        {
-            return null;
-        }
-
-        return result == ContentDialogResult.Primary;
     }
 
     private async Task<string?> PromptForCollectionNameAsync()
@@ -1295,6 +1323,24 @@ public sealed partial class MainPage : Page
         return ViewModel.LayoutService.CellIndex.TryGetValue((gx, gy), out int idx) ? idx : -1;
     }
 
+    private void MapCanvas_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        ApplyInitialMapScale();
+    }
+
+    private void ApplyInitialMapScale()
+    {
+        if (_isInitialMapScaleApplied || !ViewModel.LayoutService.IsReady ||
+            MapCanvas.ActualWidth <= 0 || MapCanvas.ActualHeight <= 0)
+        {
+            return;
+        }
+
+        FitGridToCanvas();
+        _isInitialMapScaleApplied = true;
+        MapCanvas.Invalidate();
+    }
+
     /// <summary>Scales the view so all icons fit in the current canvas.</summary>
     private void FitGridToCanvas()
     {
@@ -1309,7 +1355,7 @@ public sealed partial class MainPage : Page
         float H = (float)MapCanvas.ActualHeight;
         if (W <= 0 || H <= 0) { _mapScale = 1f; return; }
         float span = (maxExt * 2 + 3) * MapCellSize;
-        _mapScale = Math.Min(W / span, H / span);
+        _mapScale = Math.Clamp(Math.Min(W / span, H / span) * InitialMapZoomFactor, 0.08f, 20f);
         _mapPanX = 0f;
         _mapPanY = 0f;
     }

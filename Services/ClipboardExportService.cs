@@ -92,9 +92,9 @@ public partial class ClipboardExportService
     }
 
     /// <summary>Copies a real SVG with vector path data extracted from the font glyph outline.</summary>
-    public void CopySvg(FluentIcon icon, IconMatchingService matchingService)
+    public void CopySvg(FluentIcon icon, IconMatchingService matchingService, bool useBlack = true)
     {
-        string svg = matchingService.GetGlyphSvg(icon);
+        string svg = matchingService.GetGlyphSvg(icon, useBlack);
         SetText(svg);
     }
 

@@ -28,6 +28,7 @@ public sealed class CollectionExportService
         IEnumerable<FluentIcon> icons,
         IconMatchingService matchingService,
         string folderPath,
+        bool useBlack,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(folderPath);
@@ -36,7 +37,7 @@ public sealed class CollectionExportService
 
         foreach (FluentIcon icon in EnumerateDistinctIcons(icons))
         {
-            string svg = matchingService.GetGlyphSvg(icon);
+            string svg = matchingService.GetGlyphSvg(icon, useBlack);
             string filePath = Path.Combine(folderPath, BuildFileName(icon, ".svg"));
             await File.WriteAllTextAsync(filePath, svg, Encoding.UTF8, cancellationToken);
         }

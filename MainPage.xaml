@@ -309,7 +309,7 @@
                             <Button
                                 AutomationProperties.AutomationId="CopySvgButton"
                                 AutomationProperties.Name="Copy SVG"
-                                Command="{x:Bind ViewModel.CopyAsSvgCommand}"
+                                Click="CopySvg_Click"
                                 Content="&#xE71B;"
                                 FontFamily="{ThemeResource SymbolThemeFontFamily}"
                                 Style="{StaticResource CanvasToolbarIconButtonStyle}"
@@ -698,6 +698,7 @@
                     Draw="MapCanvas_Draw"
                     PointerCaptureLost="MapCanvas_PointerCaptureLost"
                     PointerMoved="MapCanvas_PointerMoved"
+                    SizeChanged="MapCanvas_SizeChanged"
                     PointerPressed="MapCanvas_PointerPressed"
                     PointerReleased="MapCanvas_PointerReleased"
                     PointerWheelChanged="MapCanvas_PointerWheelChanged"
