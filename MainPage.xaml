@@ -389,6 +389,14 @@
                                 FontFamily="{ThemeResource SymbolThemeFontFamily}"
                                 Style="{StaticResource CanvasToolbarIconButtonStyle}"
                                 ToolTipService.ToolTip="Rotate sketch 90° clockwise" />
+                            <Button
+                                AutomationProperties.AutomationId="ExportInkButton"
+                                AutomationProperties.Name="Save sketch fixture"
+                                Click="ExportInk_Click"
+                                Content="&#xE898;"
+                                FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                Style="{StaticResource CanvasToolbarIconButtonStyle}"
+                                ToolTipService.ToolTip="Save sketch fixture (.isf)" />
 
                             <Rectangle
                                 Width="1"
@@ -447,22 +455,41 @@
                         </StackPanel>
                     </Grid>
 
-                    <!--  Canvas layer: Win2D CanvasControl for freehand drawing  -->
+                    <!--  Native InkCanvas handles low-latency mouse, touch, and pen input.  -->
                     <Grid
                         x:Name="CanvasHost"
                         Grid.Row="1"
                         SizeChanged="CanvasHost_SizeChanged">
 
-                        <canvas:CanvasControl
+                        <Border
+                            x:Name="CanvasGuide"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Background="{ThemeResource ControlFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                            BorderThickness="1"
+                            IsHitTestVisible="False">
+                            <Rectangle
+                                Margin="24"
+                                Stroke="#0078D4"
+                                StrokeDashArray="4,2"
+                                StrokeThickness="1.5" />
+                        </Border>
+
+                        <TextBlock
+                            x:Name="MatchingIconOverlay"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            FontFamily="ms-appx:///Assets/FluentSystemIcons-Regular.ttf#FluentSystemIcons-Regular"
+                            IsHitTestVisible="False"
+                            Opacity="0.2"
+                            Visibility="Collapsed" />
+
+                        <InkCanvas
                             x:Name="DrawingCanvas"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center"
-                            AutomationProperties.AutomationId="DrawingCanvas"
-                            Draw="DrawingCanvas_Draw"
-                            PointerCaptureLost="DrawingCanvas_PointerCaptureLost"
-                            PointerMoved="DrawingCanvas_PointerMoved"
-                            PointerPressed="DrawingCanvas_PointerPressed"
-                            PointerReleased="DrawingCanvas_PointerReleased" />
+                            AutomationProperties.Name="Icon sketch canvas" />
 
                         <!--  Empty-state hint (centred over the square canvas)  -->
                         <TextBlock

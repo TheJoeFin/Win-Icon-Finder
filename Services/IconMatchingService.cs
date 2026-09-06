@@ -30,7 +30,8 @@ public partial class IconMatchingService
     // Bump CacheFormatVersion whenever GlyphSize, BaseFontSize, rendering
     // logic, or cache validation semantics change so stale cache files are
     // automatically invalidated.
-    private const int CacheFormatVersion = 2;
+    private const int CacheFormatVersion = 3;
+    private const float NormalizedContentSize = 52f;
     private const string CacheFileName = "icon_vectors.bin";
     private static readonly byte[] CacheMagic = [(byte)'W', (byte)'I', (byte)'N', (byte)'F'];
 
@@ -261,7 +262,7 @@ public partial class IconMatchingService
     /// InitializeAsync completes.
     /// </summary>
     public float[] RenderInkToBitmap(
-        IReadOnlyList<IReadOnlyList<Windows.Foundation.Point>> strokes,
+        IReadOnlyList<InkStrokeData> strokes,
         Windows.Foundation.Size canvasSize)
     {
         CanvasDevice device = _device ?? CanvasDevice.GetSharedDevice();
@@ -278,39 +279,46 @@ public partial class IconMatchingService
 
     private static void DrawPolyStrokes(
         CanvasDrawingSession ds,
-        IReadOnlyList<IReadOnlyList<Windows.Foundation.Point>> strokes,
+        IReadOnlyList<InkStrokeData> strokes,
         Windows.Foundation.Size canvasSize)
     {
         double scaleX = canvasSize.Width > 0 ? GlyphSize / canvasSize.Width : 1.0;
         double scaleY = canvasSize.Height > 0 ? GlyphSize / canvasSize.Height : 1.0;
         float scale = (float)Math.Min(scaleX, scaleY);
-        float strokeWidth = Math.Max(1.5f, 3f * scale);
 
-        foreach (IReadOnlyList<Point> stroke in strokes)
+        foreach (InkStrokeData stroke in strokes)
         {
-            IReadOnlyList<Point> pts = stroke;
-            if (pts.Count == 0) continue;
+            IReadOnlyList<Point> points = stroke.Points;
+            if (points.Count == 0) continue;
 
-            if (pts.Count == 1)
+            float strokeWidth = Math.Max(1.5f, stroke.Width * scale);
+            if (points.Count == 1)
             {
-                float px = (float)(pts[0].X * scale);
-                float py = (float)(pts[0].Y * scale);
-                ds.FillCircle(px, py, strokeWidth, Colors.White);
+                float px = (float)(points[0].X * scale);
+                float py = (float)(points[0].Y * scale);
+                ds.FillCircle(px, py, strokeWidth / 2, Colors.White);
                 continue;
             }
 
-            for (int i = 0; i < pts.Count - 1; i++)
+            CanvasStrokeStyle style = new()
             {
-                float x1 = (float)(pts[i].X * scale);
-                float y1 = (float)(pts[i].Y * scale);
-                float x2 = (float)(pts[i + 1].X * scale);
-                float y2 = (float)(pts[i + 1].Y * scale);
-                ds.DrawLine(x1, y1, x2, y2, Colors.White, strokeWidth);
+                StartCap = CanvasCapStyle.Round,
+                EndCap = CanvasCapStyle.Round,
+                LineJoin = CanvasLineJoin.Round
+            };
+            for (int i = 0; i < points.Count - 1; i++)
+            {
+                ds.DrawLine(
+                    (float)(points[i].X * scale),
+                    (float)(points[i].Y * scale),
+                    (float)(points[i + 1].X * scale),
+                    (float)(points[i + 1].Y * scale),
+                    Colors.White,
+                    strokeWidth,
+                    style);
             }
         }
     }
-
-    // OLD ink-stroke rendering removed — replaced by DrawPolyStrokes above
 
     // -------------------------------------------------------------------------
     // Similarity search
@@ -510,18 +518,72 @@ public partial class IconMatchingService
             result[i] = b * 0.114f + g * 0.587f + r * 0.299f;
         }
 
-        // L2 normalise
+        return NormalizeContentBounds(result);
+    }
+
+    private static float[] NormalizeContentBounds(float[] source)
+    {
+        const float threshold = 0.02f;
+        int left = GlyphSize;
+        int top = GlyphSize;
+        int right = -1;
+        int bottom = -1;
+
+        for (int y = 0; y < GlyphSize; y++)
+        {
+            for (int x = 0; x < GlyphSize; x++)
+            {
+                if (source[y * GlyphSize + x] <= threshold)
+                {
+                    continue;
+                }
+
+                left = Math.Min(left, x);
+                top = Math.Min(top, y);
+                right = Math.Max(right, x);
+                bottom = Math.Max(bottom, y);
+            }
+        }
+
+        if (right < left || bottom < top)
+        {
+            return source;
+        }
+
+        float scale = Math.Min(
+            (NormalizedContentSize - 1) / Math.Max(1, right - left),
+            (NormalizedContentSize - 1) / Math.Max(1, bottom - top));
+        float offsetX = (GlyphSize - (right - left) * scale) / 2f;
+        float offsetY = (GlyphSize - (bottom - top) * scale) / 2f;
+        float[] normalized = new float[GlyphSize * GlyphSize];
+
+        for (int y = top; y <= bottom; y++)
+        {
+            for (int x = left; x <= right; x++)
+            {
+                int destinationX = Math.Clamp((int)MathF.Round(offsetX + (x - left) * scale), 0, GlyphSize - 1);
+                int destinationY = Math.Clamp((int)MathF.Round(offsetY + (y - top) * scale), 0, GlyphSize - 1);
+                int destinationIndex = destinationY * GlyphSize + destinationX;
+                normalized[destinationIndex] = Math.Max(normalized[destinationIndex], source[y * GlyphSize + x]);
+            }
+        }
+
+        return NormalizeVector(normalized);
+    }
+
+    private static float[] NormalizeVector(float[] vector)
+    {
         float sumSq = 0f;
-        foreach (float v in result) sumSq += v * v;
+        foreach (float value in vector) sumSq += value * value;
 
         if (sumSq > 0f)
         {
-            float inv = 1f / MathF.Sqrt(sumSq);
-            for (int i = 0; i < result.Length; i++)
-                result[i] *= inv;
+            float inverseLength = 1f / MathF.Sqrt(sumSq);
+            for (int i = 0; i < vector.Length; i++)
+                vector[i] *= inverseLength;
         }
 
-        return result;
+        return vector;
     }
 
     // -------------------------------------------------------------------------

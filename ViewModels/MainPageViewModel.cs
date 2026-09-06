@@ -444,7 +444,7 @@ public partial class MainViewModel : ObservableObject
     // -------------------------------------------------------------------------
 
     public async Task SearchByInkAsync(
-        IReadOnlyList<IReadOnlyList<Windows.Foundation.Point>> strokes,
+        IReadOnlyList<InkStrokeData> strokes,
         Windows.Foundation.Size canvasSize)
     {
         if (strokes.Count == 0)
@@ -454,7 +454,11 @@ public partial class MainViewModel : ObservableObject
 
         float[] inkVector = await Task.Run(() =>
             _matchingService.RenderInkToBitmap(strokes, canvasSize));
+        ApplyInkSearchResults(inkVector);
+    }
 
+    private void ApplyInkSearchResults(float[] inkVector)
+    {
         List<(FluentIcon Icon, double Score)> matches = _matchingService.FindSimilar(inkVector, 10, TryMatchMirrors);
         if (matches.Count == 0)
         {

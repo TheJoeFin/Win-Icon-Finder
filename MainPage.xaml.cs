@@ -1,5 +1,4 @@
 using Microsoft.Graphics.Canvas;
-using Microsoft.Graphics.Canvas.Geometry;
 using Microsoft.Graphics.Canvas.Text;
 using Microsoft.Graphics.Canvas.UI.Xaml;
 using Microsoft.UI;
@@ -11,7 +10,9 @@ using Microsoft.UI.Xaml.Input;
 using Windows.Foundation;
 using Windows.Storage;
 using Windows.Storage.Pickers;
+using Windows.Storage.Streams;
 using Windows.UI;
+using Windows.UI.Core;
 using WinIconFinder.Controls;
 using WinIconFinder.Models;
 using WinIconFinder.Services;
@@ -27,18 +28,13 @@ public sealed partial class MainPage : Page
     // One-time tips (e.g. "ship the font with your app" after the first FontIcon copy)
     private readonly UserTipsService _tips = new();
 
-    // Debounce timer: fires 500 ms after the last pointer movement
+    // Debounce timer: fires 500 ms after the most recently collected ink stroke.
     private readonly DispatcherTimer _debounceTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
 
-    // Stroke storage for Win2D drawing
-    private readonly List<List<Point>> _allStrokes = [];
-    private List<Point>? _currentStroke;
-    private bool _isDrawing;
-
-    // Pen width in canvas-logical pixels
+    // Pen width in canvas-logical pixels.
     private float _penWidth = 36f;
 
-    // Tracks the current square canvas side length for stroke rescaling on resize
+    // Tracks the current square canvas side length for stroke rescaling on resize.
     private double _canvasSize;
 
     // ── Similarity map state ──────────────────────────────────────────────────
@@ -68,30 +64,21 @@ public sealed partial class MainPage : Page
         InitializeComponent();
         NavView.SelectedItem = SearchModeNavItem;
 
+        ConfigureInkCanvas();
+
         _debounceTimer.Tick += async (_, _) =>
         {
             _debounceTimer.Stop();
-            await ViewModel.SearchByInkAsync(
-                _allStrokes.Select(s => (IReadOnlyList<Point>)s).ToList(),
-                DrawingCanvas.RenderSize);
+            await SearchCollectedInkAsync();
         };
 
         ViewModel.RequestClearCanvas += () =>
         {
-            _allStrokes.Clear();
-            _currentStroke = null;
-            _isDrawing = false;
-            DrawingCanvas.Invalidate();
+            DrawingCanvas.InkPresenter.StrokeContainer.Clear();
             EmptyStateText.Visibility = Visibility.Visible;
         };
 
-        ViewModel.RequestResearch += async () =>
-        {
-            if (_allStrokes.Count == 0) return;
-            await ViewModel.SearchByInkAsync(
-                _allStrokes.Select(s => (IReadOnlyList<Point>)s).ToList(),
-                DrawingCanvas.RenderSize);
-        };
+        ViewModel.RequestResearch += async () => await SearchCollectedInkAsync();
 
         ViewModel.TopMatchesFound += matches =>
         {
@@ -102,7 +89,12 @@ public sealed partial class MainPage : Page
         ViewModel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(ViewModel.SelectedIcon))
-                DrawingCanvas.Invalidate();
+            {
+                MatchingIconOverlay.Text = ViewModel.SelectedIcon?.GlyphString ?? string.Empty;
+                MatchingIconOverlay.Visibility = ViewModel.SelectedIcon is null
+                    ? Visibility.Collapsed
+                    : Visibility.Visible;
+            }
             // Refresh map as soon as loading finishes (avoids "not ready" guard hit)
             if (e.PropertyName == nameof(ViewModel.IsBusy) && !ViewModel.IsBusy)
                 MapCanvas.Invalidate();
@@ -124,207 +116,94 @@ public sealed partial class MainPage : Page
     }
 
     // -------------------------------------------------------------------------
-    // Square canvas constraint
+    // InkCanvas input and layout
     // -------------------------------------------------------------------------
+
+    private void ConfigureInkCanvas()
+    {
+        DrawingCanvas.InkPresenter.InputDeviceTypes =
+            CoreInputDeviceTypes.Mouse | CoreInputDeviceTypes.Pen | CoreInputDeviceTypes.Touch;
+        DrawingCanvas.InkPresenter.StrokesCollected += DrawingCanvas_StrokesCollected;
+        UpdateInkDrawingAttributes();
+    }
 
     private void CanvasHost_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        const double margin = 48.0; // breathing room so the legend fits below
-        double side = Math.Min(e.NewSize.Width, e.NewSize.Height) - margin;
-        side = Math.Max(side, 120);
+        const double margin = 48.0;
+        double side = Math.Max(Math.Min(e.NewSize.Width, e.NewSize.Height) - margin, 120);
 
-        // Rescale all stored stroke points so ink stays proportionally correct
         if (_canvasSize > 0 && side != _canvasSize)
         {
-            double scale = side / _canvasSize;
-            foreach (List<Point> stroke in _allStrokes)
-                for (int i = 0; i < stroke.Count; i++)
-                    stroke[i] = new Point(stroke[i].X * scale, stroke[i].Y * scale);
-
-            if (_currentStroke is not null)
-                for (int i = 0; i < _currentStroke.Count; i++)
-                    _currentStroke[i] = new Point(_currentStroke[i].X * scale, _currentStroke[i].Y * scale);
+            System.Numerics.Matrix3x2 scale = System.Numerics.Matrix3x2.CreateScale((float)(side / _canvasSize));
+            foreach (Windows.UI.Input.Inking.InkStroke stroke in DrawingCanvas.InkPresenter.StrokeContainer.GetStrokes())
+                stroke.PointTransform = stroke.PointTransform * scale;
         }
 
         _canvasSize = side;
+        CanvasGuide.Width = side;
+        CanvasGuide.Height = side;
         DrawingCanvas.Width = side;
         DrawingCanvas.Height = side;
-        DrawingCanvas.Invalidate();
+        MatchingIconOverlay.FontSize = side * (IconMatchingService.BaseFontSize / IconMatchingService.GlyphSize);
     }
 
-    // -------------------------------------------------------------------------
-    // Win2D CanvasControl — Draw event
-    // -------------------------------------------------------------------------
-
-    private void DrawingCanvas_Draw(CanvasControl sender, CanvasDrawEventArgs args)
+    private void DrawingCanvas_StrokesCollected(
+        Microsoft.UI.Xaml.Controls.InkPresenter sender,
+        Microsoft.UI.Xaml.Controls.InkStrokesCollectedEventArgs args)
     {
-        CanvasDrawingSession ds = args.DrawingSession;
-
-        ds.Clear(ActualTheme == ElementTheme.Dark
-            ? Color.FromArgb(255, 30, 30, 30)
-            : Color.FromArgb(255, 250, 250, 250));
-
-        DrawGuideLines(ds, (float)sender.ActualWidth, (float)sender.ActualHeight);
-
-        if (ViewModel.SelectedIcon is { } overlayIcon)
-            DrawIconOverlay(ds, sender, overlayIcon);
-
-        foreach (List<Point> stroke in _allStrokes)
-            DrawStroke(ds, stroke);
-
-        if (_currentStroke is { Count: > 0 })
-            DrawStroke(ds, _currentStroke);
+        EmptyStateText.Visibility = Visibility.Collapsed;
+        _debounceTimer.Stop();
+        _debounceTimer.Start();
     }
 
-    private void DrawIconOverlay(CanvasDrawingSession ds, CanvasControl sender, FluentIcon icon)
+    private async Task SearchCollectedInkAsync()
     {
-        float w = (float)sender.ActualWidth;
-        float h = (float)sender.ActualHeight;
-        float side = Math.Min(w, h);
-
-        Color overlayColor = ActualTheme == ElementTheme.Dark
-            ? Color.FromArgb(50, 255, 255, 255)
-            : Color.FromArgb(50, 0, 0, 0);
-
-        // Mirror exactly what the matching algorithm does: BaseFontSize inside a GlyphSize×GlyphSize
-        // canvas, centered — so the overlay shows the icon precisely as the algorithm sees it.
-        float fontSize = side * (IconMatchingService.BaseFontSize / IconMatchingService.GlyphSize);
-
-        using CanvasTextFormat textFormat = new()
+        List<InkStrokeData> strokes = GetInkStrokeData();
+        if (strokes.Count == 0)
         {
-            FontFamily = IconMatchingService.FontUri,
-            FontSize = fontSize,
-            HorizontalAlignment = Microsoft.Graphics.Canvas.Text.CanvasHorizontalAlignment.Center,
-            VerticalAlignment = Microsoft.Graphics.Canvas.Text.CanvasVerticalAlignment.Center,
-            WordWrapping = Microsoft.Graphics.Canvas.Text.CanvasWordWrapping.NoWrap,
-        };
-
-        ds.DrawText(icon.GlyphString, new Rect(0, 0, w, h), overlayColor, textFormat);
-    }
-
-    /// <summary>
-    /// Draws two overlaid guides:
-    ///   • a thin gray border showing the full canvas extent
-    ///   • a dashed blue rectangle at the icon safe-area inset (~10 % per side,
-    ///     matching the padding Fluent icons use within their bounding box)
-    /// </summary>
-    private void DrawGuideLines(CanvasDrawingSession ds, float w, float h)
-    {
-        // Outer canvas boundary
-        Color borderColor = Color.FromArgb(55, 140, 140, 140);
-        ds.DrawRectangle(0.5f, 0.5f, w - 1f, h - 1f, borderColor, 1f);
-
-        // Corner ticks (small L marks at each corner to reinforce the boundary)
-        float tick = Math.Max(8f, w * 0.04f);
-        ds.DrawLine(0, 0, tick, 0, borderColor, 1f);
-        ds.DrawLine(0, 0, 0, tick, borderColor, 1f);
-        ds.DrawLine(w, 0, w - tick, 0, borderColor, 1f);
-        ds.DrawLine(w, 0, w, tick, borderColor, 1f);
-        ds.DrawLine(0, h, tick, h, borderColor, 1f);
-        ds.DrawLine(0, h, 0, h - tick, borderColor, 1f);
-        ds.DrawLine(w, h, w - tick, h, borderColor, 1f);
-        ds.DrawLine(w, h, w, h - tick, borderColor, 1f);
-
-        // Safe-area dashed rectangle (~10 % inset, matching Fluent icon padding)
-        float inset = w * 0.10f;
-        Rect safeRect = new(inset, inset, w - inset * 2, h - inset * 2);
-        CanvasStrokeStyle dashStyle = new()
-        {
-            DashStyle = Microsoft.Graphics.Canvas.Geometry.CanvasDashStyle.Dash
-        };
-        ds.DrawRoundedRectangle(
-            (float)safeRect.X, (float)safeRect.Y,
-            (float)safeRect.Width, (float)safeRect.Height,
-            3f, 3f,
-            Color.FromArgb(160, 0, 120, 212),
-            1.5f,
-            dashStyle);
-    }
-
-    private void DrawStroke(CanvasDrawingSession ds, List<Point> pts)
-    {
-        if (pts.Count == 0) return;
-
-        Color inkColor = ActualTheme == ElementTheme.Dark
-            ? Colors.White
-            : Colors.Black;
-
-        if (pts.Count == 1)
-        {
-            ds.FillCircle((float)pts[0].X, (float)pts[0].Y, _penWidth / 2, inkColor);
             return;
         }
 
-        CanvasStrokeStyle strokeStyle = new()
+        await ViewModel.SearchByInkAsync(strokes, DrawingCanvas.RenderSize);
+    }
+
+    private List<InkStrokeData> GetInkStrokeData() =>
+        [.. DrawingCanvas.InkPresenter.StrokeContainer.GetStrokes().Select(GetInkStrokeData)];
+
+    private static InkStrokeData GetInkStrokeData(Windows.UI.Input.Inking.InkStroke stroke)
+    {
+        System.Numerics.Matrix3x2 transform = stroke.PointTransform;
+        IReadOnlyList<Point> points = [.. stroke.GetInkPoints().Select(point =>
         {
-            StartCap = Microsoft.Graphics.Canvas.Geometry.CanvasCapStyle.Round,
-            EndCap = Microsoft.Graphics.Canvas.Geometry.CanvasCapStyle.Round,
-            LineJoin = Microsoft.Graphics.Canvas.Geometry.CanvasLineJoin.Round
-        };
+            System.Numerics.Vector2 transformed = System.Numerics.Vector2.Transform(
+                new System.Numerics.Vector2((float)point.Position.X, (float)point.Position.Y),
+                transform);
+            return new Point(transformed.X, transformed.Y);
+        })];
+        return new InkStrokeData(points, (float)stroke.DrawingAttributes.Size.Width);
+    }
 
-        for (int i = 0; i < pts.Count - 1; i++)
+    private async void ExportInk_Click(object sender, RoutedEventArgs e)
+    {
+        if (DrawingCanvas.InkPresenter.StrokeContainer.GetStrokes().Count == 0)
         {
-            ds.DrawLine(
-                (float)pts[i].X, (float)pts[i].Y,
-                (float)pts[i + 1].X, (float)pts[i + 1].Y,
-                inkColor, _penWidth, strokeStyle);
-        }
-    }
-
-    // -------------------------------------------------------------------------
-    // Win2D CanvasControl — Pointer events
-    // -------------------------------------------------------------------------
-
-    private void DrawingCanvas_PointerPressed(object sender, PointerRoutedEventArgs e)
-    {
-        DrawingCanvas.CapturePointer(e.Pointer);
-        _isDrawing = true;
-        _currentStroke = [e.GetCurrentPoint(DrawingCanvas).Position];
-        EmptyStateText.Visibility = Visibility.Collapsed;
-        DrawingCanvas.Invalidate();
-        e.Handled = true;
-    }
-
-    private void DrawingCanvas_PointerMoved(object sender, PointerRoutedEventArgs e)
-    {
-        if (!_isDrawing || _currentStroke is null) return;
-
-        foreach (PointerPoint? pt in e.GetIntermediatePoints(DrawingCanvas))
-            _currentStroke.Add(pt.Position);
-
-        DrawingCanvas.Invalidate();
-
-        _debounceTimer.Stop();
-        _debounceTimer.Start();
-
-        e.Handled = true;
-    }
-
-    private void DrawingCanvas_PointerReleased(object sender, PointerRoutedEventArgs e)
-    {
-        FinalizeStroke(e);
-        e.Handled = true;
-    }
-
-    private void DrawingCanvas_PointerCaptureLost(object sender, PointerRoutedEventArgs e)
-        => FinalizeStroke(e);
-
-    private void FinalizeStroke(PointerRoutedEventArgs e)
-    {
-        if (!_isDrawing) return;
-        _isDrawing = false;
-
-        if (_currentStroke is { Count: > 0 })
-        {
-            _currentStroke.Add(e.GetCurrentPoint(DrawingCanvas).Position);
-            _allStrokes.Add(_currentStroke);
+            return;
         }
 
-        _currentStroke = null;
-        DrawingCanvas.Invalidate();
+        FileSavePicker picker = new();
+        picker.FileTypeChoices.Add("Ink stroke fixture", [".isf"]);
+        picker.SuggestedFileName = "icon-sketch";
+        InitializeWithWindow.Initialize(picker, App.WindowHandle);
 
-        _debounceTimer.Stop();
-        _debounceTimer.Start();
+        StorageFile? file = await picker.PickSaveFileAsync();
+        if (file is null)
+        {
+            return;
+        }
+
+        using IRandomAccessStream stream = await file.OpenAsync(FileAccessMode.ReadWrite);
+        await DrawingCanvas.InkPresenter.StrokeContainer.SaveAsync(stream);
+        ViewModel.StatusText = $"Saved sketch fixture: {file.Name}";
     }
 
     // -------------------------------------------------------------------------
@@ -333,12 +212,18 @@ public sealed partial class MainPage : Page
 
     private void UndoStroke_Click(object sender, RoutedEventArgs e)
     {
-        if (_allStrokes.Count == 0) return;
+        IReadOnlyList<Windows.UI.Input.Inking.InkStroke> strokes = DrawingCanvas.InkPresenter.StrokeContainer.GetStrokes();
+        if (strokes.Count == 0)
+        {
+            return;
+        }
 
-        _allStrokes.RemoveAt(_allStrokes.Count - 1);
-        DrawingCanvas.Invalidate();
+        foreach (Windows.UI.Input.Inking.InkStroke stroke in strokes)
+            stroke.Selected = false;
+        strokes[^1].Selected = true;
+        DrawingCanvas.InkPresenter.StrokeContainer.DeleteSelected();
 
-        if (_allStrokes.Count == 0)
+        if (strokes.Count == 1)
             EmptyStateText.Visibility = Visibility.Visible;
 
         _debounceTimer.Stop();
@@ -347,18 +232,18 @@ public sealed partial class MainPage : Page
 
     private void RotateInk_Click(object sender, RoutedEventArgs e)
     {
-        if (_allStrokes.Count == 0) return;
+        IReadOnlyList<Windows.UI.Input.Inking.InkStroke> strokes = DrawingCanvas.InkPresenter.StrokeContainer.GetStrokes();
+        if (strokes.Count == 0)
+        {
+            return;
+        }
 
-        double s = _canvasSize;
-        foreach (List<Point> stroke in _allStrokes)
-            for (int i = 0; i < stroke.Count; i++)
-            {
-                double x = stroke[i].X, y = stroke[i].Y;
-                // 90° clockwise rotation around canvas centre (s/2, s/2): (x,y) → (y, s−x)
-                stroke[i] = new Point(y, s - x);
-            }
+        System.Numerics.Matrix3x2 rotation = System.Numerics.Matrix3x2.CreateRotation(
+            MathF.PI / 2,
+            new System.Numerics.Vector2((float)_canvasSize / 2, (float)_canvasSize / 2));
+        foreach (Windows.UI.Input.Inking.InkStroke stroke in strokes)
+            stroke.PointTransform = stroke.PointTransform * rotation;
 
-        DrawingCanvas.Invalidate();
         _debounceTimer.Stop();
         _debounceTimer.Start();
     }
@@ -373,6 +258,19 @@ public sealed partial class MainPage : Page
         PenSmallButton.IsChecked = ReferenceEquals(active, PenSmallButton);
         PenMediumButton.IsChecked = ReferenceEquals(active, PenMediumButton);
         PenLargeButton.IsChecked = ReferenceEquals(active, PenLargeButton);
+        UpdateInkDrawingAttributes();
+    }
+
+    private void UpdateInkDrawingAttributes()
+    {
+        Windows.UI.Input.Inking.InkDrawingAttributes attributes = new()
+        {
+            Color = ActualTheme == ElementTheme.Dark ? Colors.White : Colors.Black,
+            FitToCurve = true,
+            IgnorePressure = true,
+            Size = new Size(_penWidth, _penWidth)
+        };
+        DrawingCanvas.InkPresenter.UpdateDefaultDrawingAttributes(attributes);
     }
 
     // -------------------------------------------------------------------------
