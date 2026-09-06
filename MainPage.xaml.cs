@@ -462,10 +462,19 @@ public sealed partial class MainPage : Page
             SimilarityMapPanel.Visibility = Visibility.Visible;
             CollectionsPanel.Visibility = Visibility.Collapsed;
             ViewModel.IsMapMode = true;
-            MapHintText.Visibility = _mapPivotIconIdx >= 0 ? Visibility.Collapsed : Visibility.Visible;
-            if (_mapPivotIconIdx < 0)
-                FitGridToCanvas();
-            MapCanvas.Invalidate();
+
+            if (ViewModel.SelectedIcon is FluentIcon selectedIcon &&
+                TryGetLayoutPositionIndex(selectedIcon, out int positionIndex))
+            {
+                SetMapPivot(positionIndex);
+            }
+            else
+            {
+                MapHintText.Visibility = _mapPivotIconIdx >= 0 ? Visibility.Collapsed : Visibility.Visible;
+                if (_mapPivotIconIdx < 0)
+                    FitGridToCanvas();
+                MapCanvas.Invalidate();
+            }
         }
         else if (ReferenceEquals(e.SelectedItem, CollectionsNavItem))
         {
@@ -1092,23 +1101,31 @@ public sealed partial class MainPage : Page
     private void ExploreInMap_Click(object sender, RoutedEventArgs e)
     {
         FluentIcon? icon = GetActionIcon(sender) ?? ViewModel.SelectedIcon;
-        if (icon == null || !ViewModel.LayoutService.IsReady) return;
+        if (icon == null || !TryGetLayoutPositionIndex(icon, out int positionIndex)) return;
 
         ViewModel.SelectedIcon = icon;
 
-        // Find this icon's position in the current layout
+        // Switch to map mode and set pivot.
+        NavView.SelectedItem = SimilarityMapNavItem;
+        SetMapPivot(positionIndex);
+    }
+
+    private bool TryGetLayoutPositionIndex(FluentIcon icon, out int positionIndex)
+    {
+        positionIndex = -1;
+        if (!ViewModel.LayoutService.IsReady) return false;
+
         IReadOnlyList<LayoutPosition> positions = ViewModel.LayoutService.Positions;
-        int posIdx = -1;
         for (int i = 0; i < positions.Count; i++)
         {
-            if (ReferenceEquals(positions[i].Icon, icon)) { posIdx = i; break; }
+            if (ReferenceEquals(positions[i].Icon, icon))
+            {
+                positionIndex = i;
+                return true;
+            }
         }
-        if (posIdx < 0) return;
 
-        // Switch to map mode and set pivot
-        NavView.SelectedItem = SimilarityMapNavItem;
-
-        SetMapPivot(posIdx);
+        return false;
     }
 
     // -------------------------------------------------------------------------
