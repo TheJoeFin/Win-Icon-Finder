@@ -51,6 +51,7 @@ public sealed partial class MainPage : Page
     private float[]? _mapSimilarities;   // [iconIdx] → cosine similarity to pivot
     private bool _isInitialMapScaleApplied;
     private const float MapCellSize = 26f; // logical pixels per grid cell at scale=1
+    private const float MapGlyphVerticalOffsetRatio = -0.05f;
     private const float InitialMapZoomFactor = 3f;
 
     // Multi-touch pinch-to-zoom state
@@ -1168,8 +1169,8 @@ public sealed partial class MainPage : Page
         bool isDark = ActualTheme == ElementTheme.Dark;
 
         ds.Clear(isDark
-            ? Windows.UI.Color.FromArgb(255, 20, 20, 20)
-            : Windows.UI.Color.FromArgb(255, 248, 248, 248));
+            ? Color.FromArgb(255, 20, 20, 20)
+            : Color.FromArgb(255, 248, 248, 248));
 
         // Show loading message if vectors aren't ready yet
         if (!ViewModel.LayoutService.IsReady)
@@ -1177,8 +1178,8 @@ public sealed partial class MainPage : Page
             using CanvasTextFormat loadFmt = new()
             {
                 FontSize = 16,
-                HorizontalAlignment = Microsoft.Graphics.Canvas.Text.CanvasHorizontalAlignment.Center,
-                VerticalAlignment = Microsoft.Graphics.Canvas.Text.CanvasVerticalAlignment.Center
+                HorizontalAlignment = CanvasHorizontalAlignment.Center,
+                VerticalAlignment = CanvasVerticalAlignment.Center
             };
             ds.DrawText("Loading icons…", W / 2f, H / 2f,
                 isDark ? Colors.White : Colors.Black, loadFmt);
@@ -1193,31 +1194,34 @@ public sealed partial class MainPage : Page
         float fontSize = cellPx * 0.70f;
 
         Color baseColor = isDark
-            ? Windows.UI.Color.FromArgb(200, 220, 220, 220)
-            : Windows.UI.Color.FromArgb(200, 40, 40, 40);
+            ? Color.FromArgb(200, 220, 220, 220)
+            : Color.FromArgb(200, 40, 40, 40);
         byte accentR = isDark ? (byte)100 : (byte)0;
         byte accentG = isDark ? (byte)180 : (byte)120;
         byte accentB = isDark ? (byte)255 : (byte)212;
 
         // Clamp font so icons don't become invisible when zoomed out
         float drawFontSize = Math.Max(fontSize, 4f);
+        float pivotFontSize = Math.Max(drawFontSize * 1.35f, 6f);
+        float glyphVerticalOffset = drawFontSize * MapGlyphVerticalOffsetRatio;
+        float pivotGlyphVerticalOffset = pivotFontSize * MapGlyphVerticalOffsetRatio;
 
         using CanvasTextFormat tf = new()
         {
             FontFamily = IconMatchingService.FontUri,
             FontSize = drawFontSize,
-            HorizontalAlignment = Microsoft.Graphics.Canvas.Text.CanvasHorizontalAlignment.Center,
-            VerticalAlignment = Microsoft.Graphics.Canvas.Text.CanvasVerticalAlignment.Center,
-            WordWrapping = Microsoft.Graphics.Canvas.Text.CanvasWordWrapping.NoWrap
+            HorizontalAlignment = CanvasHorizontalAlignment.Center,
+            VerticalAlignment = CanvasVerticalAlignment.Center,
+            WordWrapping = CanvasWordWrapping.NoWrap
         };
 
         using CanvasTextFormat tfPivot = new()
         {
             FontFamily = IconMatchingService.FontUri,
-            FontSize = Math.Max(drawFontSize * 1.35f, 6f),
-            HorizontalAlignment = Microsoft.Graphics.Canvas.Text.CanvasHorizontalAlignment.Center,
-            VerticalAlignment = Microsoft.Graphics.Canvas.Text.CanvasVerticalAlignment.Center,
-            WordWrapping = Microsoft.Graphics.Canvas.Text.CanvasWordWrapping.NoWrap
+            FontSize = pivotFontSize,
+            HorizontalAlignment = CanvasHorizontalAlignment.Center,
+            VerticalAlignment = CanvasVerticalAlignment.Center,
+            WordWrapping = CanvasWordWrapping.NoWrap
         };
 
         float halfCell = cellPx * 0.5f;
@@ -1228,51 +1232,51 @@ public sealed partial class MainPage : Page
             (float sx, float sy) = MapToScreen(pos.GX, pos.GY, W, H);
 
             // Cull icons outside visible area
-            if (sx < -halfCell * 2 || sx > W + halfCell * 2 ||
-                sy < -halfCell * 2 || sy > H + halfCell * 2)
+            if (sx < -halfCell * 2 || sx > W + (halfCell * 2) ||
+                sy < -halfCell * 2 || sy > H + (halfCell * 2))
                 continue;
 
             bool isPivot = pos.GX == 0 && pos.GY == 0 && hasPivot;
             float similarity = hasPivot ? _mapSimilarities![pos.Index] : 1f;
 
             byte alpha = hasPivot
-                ? (byte)Math.Clamp((int)(25 + 230 * similarity), 25, 255)
+                ? (byte)Math.Clamp((int)(25 + (230 * similarity)), 25, 255)
                 : (byte)200;
 
             if (isPivot)
             {
                 // Accent halo for pivot
                 ds.FillCircle(sx, sy, halfCell * 0.95f,
-                    Windows.UI.Color.FromArgb(90, accentR, accentG, accentB));
+                    Color.FromArgb(90, accentR, accentG, accentB));
                 ds.DrawCircle(sx, sy, halfCell * 0.95f,
-                    Windows.UI.Color.FromArgb(210, accentR, accentG, accentB), 1.5f);
-                ds.DrawText(pos.Icon.GlyphString, sx, sy,
-                    Windows.UI.Color.FromArgb(235, accentR, accentG, accentB), tfPivot);
+                    Color.FromArgb(210, accentR, accentG, accentB), 1.5f);
+                ds.DrawText(pos.Icon.GlyphString, sx, sy + pivotGlyphVerticalOffset,
+                    Color.FromArgb(235, accentR, accentG, accentB), tfPivot);
             }
             else
             {
                 bool isHovered = i == _mapHoveredIndex;
                 if (isHovered)
-                    ds.FillRoundedRectangle(sx - halfCell * 0.9f, sy - halfCell * 0.9f,
+                    ds.FillRoundedRectangle(sx - (halfCell * 0.9f), sy - (halfCell * 0.9f),
                         halfCell * 1.8f, halfCell * 1.8f, 4, 4,
-                        Windows.UI.Color.FromArgb(55, 128, 128, 128));
+                        Color.FromArgb(55, 128, 128, 128));
 
                 // Blend base → accent colour for high-similarity icons
                 byte r, g, b;
                 if (hasPivot && similarity > 0.25f)
                 {
                     float t = Math.Clamp((similarity - 0.25f) / 0.75f, 0f, 1f);
-                    r = (byte)(baseColor.R + t * (accentR - baseColor.R));
-                    g = (byte)(baseColor.G + t * (accentG - baseColor.G));
-                    b = (byte)(baseColor.B + t * (accentB - baseColor.B));
+                    r = (byte)(baseColor.R + (t * (accentR - baseColor.R)));
+                    g = (byte)(baseColor.G + (t * (accentG - baseColor.G)));
+                    b = (byte)(baseColor.B + (t * (accentB - baseColor.B)));
                 }
                 else
                 {
                     r = baseColor.R; g = baseColor.G; b = baseColor.B;
                 }
 
-                ds.DrawText(pos.Icon.GlyphString, sx, sy,
-                    Windows.UI.Color.FromArgb(alpha, r, g, b), tf);
+                ds.DrawText(pos.Icon.GlyphString, sx, sy + glyphVerticalOffset,
+                    Color.FromArgb(alpha, r, g, b), tf);
             }
         }
 
@@ -1288,16 +1292,16 @@ public sealed partial class MainPage : Page
             using CanvasTextFormat labelFmt = new()
             {
                 FontSize = 11,
-                HorizontalAlignment = Microsoft.Graphics.Canvas.Text.CanvasHorizontalAlignment.Center,
-                VerticalAlignment = Microsoft.Graphics.Canvas.Text.CanvasVerticalAlignment.Top
+                HorizontalAlignment = CanvasHorizontalAlignment.Center,
+                VerticalAlignment = CanvasVerticalAlignment.Top
             };
 
             float lx = Math.Clamp(hx, 60, W - 60);
             float ly = Math.Min(hy + halfCell + 3f, H - 18);
             ds.FillRoundedRectangle(lx - 60, ly - 1, 120, 16, 3, 3,
-                Windows.UI.Color.FromArgb(160, 20, 20, 20));
+                Color.FromArgb(160, 20, 20, 20));
             ds.DrawText(label, lx, ly,
-                Windows.UI.Color.FromArgb(230, 240, 240, 240), labelFmt);
+                Color.FromArgb(230, 240, 240, 240), labelFmt);
         }
     }
 
@@ -1307,13 +1311,13 @@ public sealed partial class MainPage : Page
 
     /// <summary>Grid cell (gx, gy) → canvas pixels. Pivot (0,0) = canvas centre + pan.</summary>
     private (float sx, float sy) MapToScreen(int gx, int gy, float W, float H) =>
-        (W / 2f + gx * MapCellSize * _mapScale + _mapPanX,
-         H / 2f + gy * MapCellSize * _mapScale + _mapPanY);
+        ((W / 2f) + (gx * MapCellSize * _mapScale) + _mapPanX,
+         (H / 2f) + (gy * MapCellSize * _mapScale) + _mapPanY);
 
     /// <summary>Canvas pixels → nearest grid cell (integer coords).</summary>
     private (int gx, int gy) ScreenToCell(float mx, float my, float W, float H) =>
-        ((int)Math.Round((mx - W / 2f - _mapPanX) / (MapCellSize * _mapScale)),
-         (int)Math.Round((my - H / 2f - _mapPanY) / (MapCellSize * _mapScale)));
+        ((int)Math.Round((mx - (W / 2f) - _mapPanX) / (MapCellSize * _mapScale)),
+         (int)Math.Round((my - (H / 2f) - _mapPanY) / (MapCellSize * _mapScale)));
 
     /// <summary>Returns index into Positions[] for the cell under (mx, my), or -1.</summary>
     private int MapHitTest(float mx, float my, float W, float H)
@@ -1354,7 +1358,7 @@ public sealed partial class MainPage : Page
         float W = (float)MapCanvas.ActualWidth;
         float H = (float)MapCanvas.ActualHeight;
         if (W <= 0 || H <= 0) { _mapScale = 1f; return; }
-        float span = (maxExt * 2 + 3) * MapCellSize;
+        float span = ((maxExt * 2) + 3) * MapCellSize;
         _mapScale = Math.Clamp(Math.Min(W / span, H / span) * InitialMapZoomFactor, 0.08f, 20f);
         _mapPanX = 0f;
         _mapPanY = 0f;
@@ -1441,8 +1445,8 @@ public sealed partial class MainPage : Page
                 float startMx = (float)_mapPinchStartMid.X, startMy = (float)_mapPinchStartMid.Y;
 
                 // Fix the world point under the start midpoint, then shift by midpoint translation
-                _mapPanX = curMx - W / 2f - (startMx - W / 2f - _mapPinchStartPanX) * ratio;
-                _mapPanY = curMy - H / 2f - (startMy - H / 2f - _mapPinchStartPanY) * ratio;
+                _mapPanX = curMx - (W / 2f) - ((startMx - (W / 2f) - _mapPinchStartPanX) * ratio);
+                _mapPanY = curMy - (H / 2f) - ((startMy - (H / 2f) - _mapPinchStartPanY) * ratio);
                 _mapScale = newScale;
                 MapCanvas.Invalidate();
             }
@@ -1523,7 +1527,7 @@ public sealed partial class MainPage : Page
     private static double MapPtrDistance(Point a, Point b)
     {
         double dx = a.X - b.X, dy = a.Y - b.Y;
-        return Math.Sqrt(dx * dx + dy * dy);
+        return Math.Sqrt((dx * dx) + (dy * dy));
     }
 
     private static Point MapPtrMidpoint(Point a, Point b) =>
@@ -1543,8 +1547,8 @@ public sealed partial class MainPage : Page
 
         // Keep the world point under the cursor fixed.
         // MapToScreen: sx = W/2 + gx*cell*scale + panX  →  newPanX = (mx - W/2)*(1 - ratio) + panX*ratio
-        _mapPanX = (mx - W / 2f) * (1f - ratio) + _mapPanX * ratio;
-        _mapPanY = (my - H / 2f) * (1f - ratio) + _mapPanY * ratio;
+        _mapPanX = ((mx - (W / 2f)) * (1f - ratio)) + (_mapPanX * ratio);
+        _mapPanY = ((my - (H / 2f)) * (1f - ratio)) + (_mapPanY * ratio);
         _mapScale = newScale;
 
         MapCanvas.Invalidate();

@@ -396,7 +396,8 @@
                                 Content="&#xE898;"
                                 FontFamily="{ThemeResource SymbolThemeFontFamily}"
                                 Style="{StaticResource CanvasToolbarIconButtonStyle}"
-                                ToolTipService.ToolTip="Save sketch fixture (.isf)" />
+                                ToolTipService.ToolTip="Save sketch fixture (.isf)"
+                                Visibility="Collapsed" />
 
                             <Rectangle
                                 Width="1"
@@ -698,11 +699,11 @@
                     Draw="MapCanvas_Draw"
                     PointerCaptureLost="MapCanvas_PointerCaptureLost"
                     PointerMoved="MapCanvas_PointerMoved"
-                    SizeChanged="MapCanvas_SizeChanged"
                     PointerPressed="MapCanvas_PointerPressed"
                     PointerReleased="MapCanvas_PointerReleased"
                     PointerWheelChanged="MapCanvas_PointerWheelChanged"
-                    RightTapped="MapCanvas_RightTapped" />
+                    RightTapped="MapCanvas_RightTapped"
+                    SizeChanged="MapCanvas_SizeChanged" />
 
                 <!--  Empty-state hint  -->
                 <TextBlock

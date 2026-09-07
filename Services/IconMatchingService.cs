@@ -369,7 +369,7 @@ public partial class IconMatchingService
         float[] result = new float[vector.Length];
         for (int row = 0; row < GlyphSize; row++)
             for (int col = 0; col < GlyphSize; col++)
-                result[row * GlyphSize + col] = vector[row * GlyphSize + (GlyphSize - 1 - col)];
+                result[(row * GlyphSize) + col] = vector[(row * GlyphSize) + (GlyphSize - 1 - col)];
         return result;
     }
 
@@ -379,7 +379,7 @@ public partial class IconMatchingService
         float[] result = new float[vector.Length];
         for (int row = 0; row < GlyphSize; row++)
             for (int col = 0; col < GlyphSize; col++)
-                result[row * GlyphSize + col] = vector[(GlyphSize - 1 - row) * GlyphSize + col];
+                result[(row * GlyphSize) + col] = vector[((GlyphSize - 1 - row) * GlyphSize) + col];
         return result;
     }
 
@@ -471,8 +471,8 @@ public partial class IconMatchingService
             Matrix3x2.CreateTranslation((float)-bounds.X, (float)-bounds.Y) *
             Matrix3x2.CreateScale(scale) *
             Matrix3x2.CreateTranslation(
-                (targetSize - (float)bounds.Width * scale) / 2f,
-                (targetSize - (float)bounds.Height * scale) / 2f);
+                (targetSize - ((float)bounds.Width * scale)) / 2f,
+                (targetSize - ((float)bounds.Height * scale)) / 2f);
 
         using CanvasGeometry normalized = geometry.Transform(transform);
 
@@ -515,7 +515,7 @@ public partial class IconMatchingService
             float b = bgra[o] / 255f;
             float g = bgra[o + 1] / 255f;
             float r = bgra[o + 2] / 255f;
-            result[i] = b * 0.114f + g * 0.587f + r * 0.299f;
+            result[i] = (b * 0.114f) + (g * 0.587f) + (r * 0.299f);
         }
 
         return NormalizeContentBounds(result);
@@ -533,7 +533,7 @@ public partial class IconMatchingService
         {
             for (int x = 0; x < GlyphSize; x++)
             {
-                if (source[y * GlyphSize + x] <= threshold)
+                if (source[(y * GlyphSize) + x] <= threshold)
                 {
                     continue;
                 }
@@ -553,18 +553,18 @@ public partial class IconMatchingService
         float scale = Math.Min(
             (NormalizedContentSize - 1) / Math.Max(1, right - left),
             (NormalizedContentSize - 1) / Math.Max(1, bottom - top));
-        float offsetX = (GlyphSize - (right - left) * scale) / 2f;
-        float offsetY = (GlyphSize - (bottom - top) * scale) / 2f;
+        float offsetX = (GlyphSize - ((right - left) * scale)) / 2f;
+        float offsetY = (GlyphSize - ((bottom - top) * scale)) / 2f;
         float[] normalized = new float[GlyphSize * GlyphSize];
 
         for (int y = top; y <= bottom; y++)
         {
             for (int x = left; x <= right; x++)
             {
-                int destinationX = Math.Clamp((int)MathF.Round(offsetX + (x - left) * scale), 0, GlyphSize - 1);
-                int destinationY = Math.Clamp((int)MathF.Round(offsetY + (y - top) * scale), 0, GlyphSize - 1);
-                int destinationIndex = destinationY * GlyphSize + destinationX;
-                normalized[destinationIndex] = Math.Max(normalized[destinationIndex], source[y * GlyphSize + x]);
+                int destinationX = Math.Clamp((int)MathF.Round(offsetX + ((x - left) * scale)), 0, GlyphSize - 1);
+                int destinationY = Math.Clamp((int)MathF.Round(offsetY + ((y - top) * scale)), 0, GlyphSize - 1);
+                int destinationIndex = (destinationY * GlyphSize) + destinationX;
+                normalized[destinationIndex] = Math.Max(normalized[destinationIndex], source[(y * GlyphSize) + x]);
             }
         }
 
