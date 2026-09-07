@@ -4,56 +4,32 @@ using WinIconFinder.Models;
 
 namespace WinIconFinder.Services;
 
-/// <summary>
-/// Copies icon data to the clipboard in various formats.
-/// All public methods must be called from the UI thread.
-/// </summary>
 public partial class ClipboardExportService
 {
-    /// <summary>Copies the glyph code. C# format: \uXXXX, XAML format: &amp;#xXXXX;</summary>
     public void CopyGlyphCode(FluentIcon icon, bool useXaml)
     {
-        SetText(useXaml
-            ? $"&#x{icon.Codepoint:X4};"
-            : $"\\u{icon.Codepoint:X4}");
+        SetText(useXaml ? $"&#x{icon.Codepoint:X4};" : icon.CodepointEscape);
     }
 
     public void CopyGlyphCodes(IEnumerable<FluentIcon> icons, bool useXaml)
     {
-        string text = string.Join(
-            Environment.NewLine,
-            icons
-                .OrderBy(icon => icon.DisplayName, StringComparer.OrdinalIgnoreCase)
-                .Select(icon => useXaml
-                    ? $"&#x{icon.Codepoint:X4};"
-                    : $"\\u{icon.Codepoint:X4}"));
-
-        SetText(text);
+        SetText(string.Join(Environment.NewLine, icons
+            .OrderBy(icon => icon.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .Select(icon => useXaml ? $"&#x{icon.Codepoint:X4};" : icon.CodepointEscape)));
     }
 
-    /// <summary>Copies a WinUI 3 FontIcon XAML snippet using the bundled Fluent icon font.</summary>
-    public void CopyXamlFontIcon(FluentIcon icon)
+    public void CopyXamlFontIcon(FluentIcon icon, string fontUri)
     {
-        SetText(
-            $$"""<FontIcon FontFamily="{{IconMatchingService.FontUri}}" Glyph="&#x{{icon.Codepoint:X4}};" />""");
+        SetText($"<FontIcon FontFamily=\"{fontUri}\" Glyph=\"&#x{icon.Codepoint:X4};\" />");
     }
 
-    public void CopyXamlFontIcons(IEnumerable<FluentIcon> icons)
+    public void CopyXamlFontIcons(IEnumerable<FluentIcon> icons, string fontUri)
     {
-        string text = string.Join(
-            Environment.NewLine,
-            icons
-                .OrderBy(icon => icon.DisplayName, StringComparer.OrdinalIgnoreCase)
-                .Select(icon =>
-                    $$"""<FontIcon FontFamily="{{IconMatchingService.FontUri}}" Glyph="&#x{{icon.Codepoint:X4}};" />"""));
-
-        SetText(text);
+        SetText(string.Join(Environment.NewLine, icons
+            .OrderBy(icon => icon.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .Select(icon => $"<FontIcon FontFamily=\"{fontUri}\" Glyph=\"&#x{icon.Codepoint:X4};\" />")));
     }
 
-    /// <summary>
-    /// Copies a WinUI 3 PathIcon XAML snippet holding the glyph outline as vector
-    /// path data, so the consuming app needs no icon font at all.
-    /// </summary>
     public void CopyXamlPathIcon(FluentIcon icon, IconMatchingService matchingService)
     {
         SetText(BuildPathIconMarkup(icon, matchingService));
@@ -61,23 +37,17 @@ public partial class ClipboardExportService
 
     public void CopyXamlPathIcons(IEnumerable<FluentIcon> icons, IconMatchingService matchingService)
     {
-        string text = string.Join(
-            Environment.NewLine,
-            icons
-                .OrderBy(icon => icon.DisplayName, StringComparer.OrdinalIgnoreCase)
-                .Select(icon => BuildPathIconMarkup(icon, matchingService)));
-
-        SetText(text);
+        SetText(string.Join(Environment.NewLine, icons
+            .OrderBy(icon => icon.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .Select(icon => BuildPathIconMarkup(icon, matchingService))));
     }
 
     private static string BuildPathIconMarkup(FluentIcon icon, IconMatchingService matchingService) =>
-        $"""<PathIcon Data="{matchingService.GetGlyphPathData(icon)}" />""";
+        $"<PathIcon Data=\"{matchingService.GetGlyphPathData(icon)}\" />";
 
-    /// <summary>Renders the icon to 256×256 PNG and copies it as a bitmap.</summary>
     public async Task CopyPngAsync(FluentIcon icon, IconMatchingService matchingService, bool useBlack = true)
     {
         byte[] pngBytes = await matchingService.RenderGlyphToPngAsync(icon, 256, useBlack);
-
         InMemoryRandomAccessStream stream = new();
         using (DataWriter writer = new(stream.GetOutputStreamAt(0)))
         {
@@ -86,22 +56,20 @@ public partial class ClipboardExportService
         }
         stream.Seek(0);
 
-        DataPackage dp = new();
-        dp.SetBitmap(RandomAccessStreamReference.CreateFromStream(stream));
-        Clipboard.SetContent(dp);
+        DataPackage dataPackage = new();
+        dataPackage.SetBitmap(RandomAccessStreamReference.CreateFromStream(stream));
+        Clipboard.SetContent(dataPackage);
     }
 
-    /// <summary>Copies a real SVG with vector path data extracted from the font glyph outline.</summary>
     public void CopySvg(FluentIcon icon, IconMatchingService matchingService, bool useBlack = true)
     {
-        string svg = matchingService.GetGlyphSvg(icon, useBlack);
-        SetText(svg);
+        SetText(matchingService.GetGlyphSvg(icon, useBlack));
     }
 
     private static void SetText(string text)
     {
-        DataPackage dp = new();
-        dp.SetText(text);
-        Clipboard.SetContent(dp);
+        DataPackage dataPackage = new();
+        dataPackage.SetText(text);
+        Clipboard.SetContent(dataPackage);
     }
 }

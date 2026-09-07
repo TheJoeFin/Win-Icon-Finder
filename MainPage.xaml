@@ -187,7 +187,7 @@
                                         <TextBlock
                                             HorizontalAlignment="Center"
                                             VerticalAlignment="Center"
-                                            FontFamily="ms-appx:///Assets/FluentSystemIcons-Regular.ttf#FluentSystemIcons-Regular"
+                                            FontFamily="{x:Bind FontFamily, Mode=OneWay}"
                                             FontSize="22"
                                             Text="{x:Bind GlyphString}" />
                                     </Border>
@@ -492,7 +492,7 @@
                             x:Name="MatchingIconOverlay"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center"
-                            FontFamily="ms-appx:///Assets/FluentSystemIcons-Regular.ttf#FluentSystemIcons-Regular"
+                            FontFamily="{x:Bind ViewModel.ActiveFontFamily, Mode=OneWay}"
                             IsHitTestVisible="False"
                             Opacity="0.2"
                             Visibility="Collapsed" />
@@ -928,7 +928,7 @@
                                             <TextBlock
                                                 HorizontalAlignment="Center"
                                                 VerticalAlignment="Center"
-                                                FontFamily="ms-appx:///Assets/FluentSystemIcons-Regular.ttf#FluentSystemIcons-Regular"
+                                                FontFamily="{x:Bind FontFamily, Mode=OneWay}"
                                                 FontSize="22"
                                                 Text="{x:Bind GlyphString}" />
                                         </Border>
@@ -1011,7 +1011,29 @@
                     <TextBlock
                         Opacity="0.7"
                         Style="{StaticResource BodyTextBlockStyle}"
-                        Text="Customize how Fluent Icon Finder looks on this device." />
+                        Text="Customize the icon source and appearance on this device." />
+
+                    <StackPanel Spacing="8">
+                        <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="Icon font" />
+                        <TextBlock
+                            Opacity="0.7"
+                            Style="{StaticResource BodyTextBlockStyle}"
+                            Text="Choose a TrueType or OpenType font. Its mapped glyphs become the searchable icons and similarity map." />
+                        <TextBlock
+                            Style="{StaticResource BodyStrongTextBlockStyle}"
+                            Text="{x:Bind ViewModel.ActiveFontName, Mode=OneWay}" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button
+                                AutomationProperties.Name="Choose icon font"
+                                Click="ChooseFont_Click"
+                                Content="Choose font..." />
+                            <Button
+                                AutomationProperties.Name="Restore Fluent System Icons"
+                                Click="RestoreFluentFont_Click"
+                                Content="Restore Fluent"
+                                IsEnabled="{x:Bind ViewModel.IsCustomFont, Mode=OneWay}" />
+                        </StackPanel>
+                    </StackPanel>
 
                     <StackPanel Spacing="8">
                         <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="Appearance" />

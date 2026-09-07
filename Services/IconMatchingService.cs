@@ -22,9 +22,7 @@ public partial class IconMatchingService
     public const int GlyphSize = 64;
     public const float BaseFontSize = 52f;
 
-    // ms-appx URI lets Win2D / DirectWrite load the bundled TTF from the package
-    public const string FontUri =
-        "ms-appx:///Assets/FluentSystemIcons-Regular.ttf#FluentSystemIcons-Regular";
+    public string FontUri { get; private set; } = FontSourceService.DefaultFontUri;
 
     // ---- cache ----
     // Bump CacheFormatVersion whenever GlyphSize, BaseFontSize, rendering
@@ -38,6 +36,7 @@ public partial class IconMatchingService
     private IReadOnlyList<FluentIcon>? _icons;
     private float[][]? _glyphVectors;
     private CanvasDevice? _device;
+    private string _fontCacheIdentity = "bundled-fluent-system-icons";
     private bool _initialized;
 
     /// <summary>Exposes pre-rendered glyph vectors for the similarity layout service.</summary>
@@ -56,10 +55,15 @@ public partial class IconMatchingService
     /// </summary>
     public async Task InitializeAsync(
         IReadOnlyList<FluentIcon> icons,
+        FontSource source,
         IProgress<int>? progress = null,
         CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(source);
         _icons = icons;
+        FontUri = source.FontUri;
+        _fontCacheIdentity = source.CacheIdentity;
+        _initialized = false;
 
         // Capture device + cache path on the UI thread before going background.
         _device = CanvasDevice.GetSharedDevice();
@@ -104,7 +108,7 @@ public partial class IconMatchingService
     /// Computes a fingerprint over the rendering parameters and the full set of
     /// icon codepoints. Any change to icons or render settings busts the cache.
     /// </summary>
-    private static int ComputeFingerprint(IReadOnlyList<FluentIcon> icons)
+    private int ComputeFingerprint(IReadOnlyList<FluentIcon> icons)
     {
         unchecked
         {
@@ -114,6 +118,7 @@ public partial class IconMatchingService
             hash = CombineFingerprint(hash, GlyphSize);
             hash = CombineFingerprint(hash, BitConverter.SingleToInt32Bits(BaseFontSize));
             hash = CombineFingerprint(hash, icons.Count);
+            hash = CombineFingerprint(hash, _fontCacheIdentity);
 
             foreach (FluentIcon icon in icons)
             {
@@ -230,7 +235,7 @@ public partial class IconMatchingService
     // Glyph rendering
     // -------------------------------------------------------------------------
 
-    private static float[] RenderGlyphToVector(CanvasDevice device, FluentIcon icon)
+    private float[] RenderGlyphToVector(CanvasDevice device, FluentIcon icon)
     {
         using CanvasRenderTarget rt = new(device, GlyphSize, GlyphSize, 96f);
         using (CanvasDrawingSession ds = rt.CreateDrawingSession())
@@ -244,7 +249,7 @@ public partial class IconMatchingService
                 VerticalAlignment = CanvasVerticalAlignment.Center
             };
             ds.DrawText(
-                icon.GlyphChar.ToString(),
+                icon.GlyphString,
                 new Rect(0, 0, GlyphSize, GlyphSize),
                 Colors.White,
                 tf);
@@ -405,7 +410,7 @@ public partial class IconMatchingService
                 VerticalAlignment = CanvasVerticalAlignment.Center
             };
             ds.DrawText(
-                icon.GlyphChar.ToString(),
+                icon.GlyphString,
                 new Rect(0, 0, size, size),
                 useBlack ? Colors.Black : Colors.White,
                 tf);
@@ -496,7 +501,7 @@ public partial class IconMatchingService
             HorizontalAlignment = CanvasHorizontalAlignment.Center,
             VerticalAlignment = CanvasVerticalAlignment.Center
         };
-        using CanvasTextLayout tl = new(device, icon.GlyphChar.ToString(), tf, layoutSize, layoutSize);
+        using CanvasTextLayout tl = new(device, icon.GlyphString, tf, layoutSize, layoutSize);
         return CanvasGeometry.CreateText(tl);
     }
 

@@ -76,6 +76,7 @@ public sealed partial class MainPage : Page
         };
 
         ViewModel.RequestThemeChange += ApplyTheme;
+        ViewModel.FontSourceChanged += ResetForFontSourceChange;
 
         _debounceTimer.Tick += async (_, _) =>
         {
@@ -913,13 +914,13 @@ public sealed partial class MainPage : Page
 
         panel.Children.Add(new TextBlock
         {
-            Text = "The snippet references the Fluent System Icons font by package URI:",
+            Text = "The snippet references the active icon font by URI:",
             TextWrapping = TextWrapping.Wrap
         });
 
         panel.Children.Add(new TextBlock
         {
-            Text = IconMatchingService.FontUri,
+            Text = ViewModel.ActiveFontUri,
             FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas"),
             IsTextSelectionEnabled = true,
             TextWrapping = TextWrapping.Wrap
@@ -927,8 +928,8 @@ public sealed partial class MainPage : Page
 
         panel.Children.Add(new TextBlock
         {
-            Text = "This font is not installed with Windows, so you have to ship it with your "
-                 + "app — otherwise the glyph renders as an empty box on other machines.",
+            Text = "This URI resolves only while the selected font remains in this app's local storage. "
+                 + "Ship the font with your app before using the snippet elsewhere.",
             TextWrapping = TextWrapping.Wrap
         });
 
@@ -941,15 +942,14 @@ public sealed partial class MainPage : Page
 
         panel.Children.Add(new TextBlock
         {
-            Text = "Copy FluentSystemIcons-Regular.ttf into your project's Assets folder and "
-                 + "include it in your .csproj so it lands in the package:",
+            Text = "Copy the selected font into your project's Assets folder and include it in your .csproj so it lands in the package:",
             TextWrapping = TextWrapping.Wrap
         });
 
         panel.Children.Add(new TextBlock
         {
             Text = """
-                   <Content Include="Assets\FluentSystemIcons-Regular.ttf">
+                   <Content Include="Assets\YourIconFont.ttf">
                      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
                    </Content>
                    """,
@@ -960,34 +960,13 @@ public sealed partial class MainPage : Page
 
         panel.Children.Add(new TextBlock
         {
-            Text = "If you put the font somewhere else, adjust the path in the FontFamily URI to match.",
+            Text = "Update both the path and family name in the FontFamily URI to match the font you ship.",
             TextWrapping = TextWrapping.Wrap
-        });
-
-        panel.Children.Add(new TextBlock
-        {
-            Text = "Where to get it",
-            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-            TextWrapping = TextWrapping.Wrap
-        });
-
-        panel.Children.Add(new TextBlock
-        {
-            Text = "Download it from Microsoft's Fluent System Icons repo (MIT licensed), "
-                 + "under fonts/FluentSystemIcons-Regular.ttf:",
-            TextWrapping = TextWrapping.Wrap
-        });
-
-        panel.Children.Add(new HyperlinkButton
-        {
-            Content = "github.com/microsoft/fluentui-system-icons",
-            NavigateUri = new Uri("https://github.com/microsoft/fluentui-system-icons/tree/main/fonts"),
-            Padding = new Thickness(0)
         });
 
         ContentDialog dialog = new()
         {
-            Title = "Copied — remember to ship the font",
+            Title = "Copied — remember to ship the active font",
             Content = new ScrollViewer
             {
                 Content = panel,
@@ -1136,6 +1115,64 @@ public sealed partial class MainPage : Page
         return input.Text.Trim();
     }
 
+    private async void ChooseFont_Click(object sender, RoutedEventArgs e)
+    {
+        FileOpenPicker picker = new();
+        picker.FileTypeFilter.Add(".ttf");
+        picker.FileTypeFilter.Add(".otf");
+        InitializeWithWindow.Initialize(picker, App.WindowHandle);
+
+        StorageFile? file = await picker.PickSingleFileAsync();
+        if (file is null)
+        {
+            return;
+        }
+
+        LoadingOverlay.Visibility = Visibility.Visible;
+        try
+        {
+            await ViewModel.SetCustomFontAsync(file);
+        }
+        catch (InvalidDataException ex)
+        {
+            await ShowMessageDialogAsync("Unable to use font", ex.Message);
+        }
+        finally
+        {
+            LoadingOverlay.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    private async void RestoreFluentFont_Click(object sender, RoutedEventArgs e)
+    {
+        LoadingOverlay.Visibility = Visibility.Visible;
+        try
+        {
+            await ViewModel.UseBundledFontAsync();
+        }
+        finally
+        {
+            LoadingOverlay.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    private void ResetForFontSourceChange()
+    {
+        _debounceTimer.Stop();
+        DrawingCanvas.InkPresenter.StrokeContainer.Clear();
+        EmptyStateText.Visibility = Visibility.Visible;
+        MatchingIconOverlay.Text = string.Empty;
+        MatchingIconOverlay.Visibility = Visibility.Collapsed;
+        _mapPivotIconIdx = -1;
+        _mapSimilarities = null;
+        _mapHoveredIndex = -1;
+        _mapPanX = 0f;
+        _mapPanY = 0f;
+        _isInitialMapScaleApplied = false;
+        MapHintText.Visibility = Visibility.Visible;
+        MapCanvas.Invalidate();
+    }
+
     private async Task<string?> PickFolderPathAsync()
     {
         FolderPicker picker = new();
@@ -1240,7 +1277,7 @@ public sealed partial class MainPage : Page
 
         using CanvasTextFormat tf = new()
         {
-            FontFamily = IconMatchingService.FontUri,
+            FontFamily = ViewModel.ActiveFontUri,
             FontSize = drawFontSize,
             HorizontalAlignment = CanvasHorizontalAlignment.Center,
             VerticalAlignment = CanvasVerticalAlignment.Center,
@@ -1249,7 +1286,7 @@ public sealed partial class MainPage : Page
 
         using CanvasTextFormat tfPivot = new()
         {
-            FontFamily = IconMatchingService.FontUri,
+            FontFamily = ViewModel.ActiveFontUri,
             FontSize = pivotFontSize,
             HorizontalAlignment = CanvasHorizontalAlignment.Center,
             VerticalAlignment = CanvasVerticalAlignment.Center,

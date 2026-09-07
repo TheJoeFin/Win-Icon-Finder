@@ -16,8 +16,24 @@ public partial class FluentIconsService
     public IReadOnlyList<FluentIcon> Icons =>
         _icons ?? throw new InvalidOperationException("Icons not loaded. Call LoadAsync() first.");
 
-    public async Task LoadAsync()
+    public async Task LoadAsync(FontSource source)
     {
+        ArgumentNullException.ThrowIfNull(source);
+
+        if (source.IsCustom)
+        {
+            _icons = source.Codepoints
+                .Select(codepoint => new FluentIcon
+                {
+                    Name = $"glyph_{codepoint:X4}",
+                    DisplayName = $"Glyph U+{codepoint:X4}",
+                    Codepoint = codepoint,
+                    FontFamily = new Microsoft.UI.Xaml.Media.FontFamily(source.FontUri)
+                })
+                .ToList();
+            return;
+        }
+
         Uri uri = new("ms-appx:///Assets/icons.json");
         StorageFile file = await Windows.Storage.StorageFile.GetFileFromApplicationUriAsync(uri);
         string json = await Windows.Storage.FileIO.ReadTextAsync(file);
@@ -55,7 +71,7 @@ public partial class FluentIconsService
                 Name = Key,
                 DisplayName = BuildDisplayName(baseName),
                 Codepoint = (uint)Codepoint,
-                GlyphChar = (char)Codepoint
+                FontFamily = new Microsoft.UI.Xaml.Media.FontFamily(source.FontUri)
             });
         }
 

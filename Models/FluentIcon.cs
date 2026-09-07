@@ -7,16 +7,19 @@ public partial class FluentIcon : ObservableObject
     public string Name { get; init; } = "";
     public string DisplayName { get; init; } = "";
     public uint Codepoint { get; init; }
-    public char GlyphChar { get; init; }
+    public Microsoft.UI.Xaml.Media.FontFamily FontFamily { get; init; } =
+        new(Services.FontSourceService.DefaultFontUri);
 
-    /// <summary>Single-char string for XAML TextBlock binding.</summary>
-    public string GlyphString => GlyphChar.ToString();
+    /// <summary>Unicode scalar text for XAML and Win2D glyph rendering.</summary>
+    public string GlyphString => char.ConvertFromUtf32(checked((int)Codepoint));
 
     /// <summary>Formatted as U+XXXX for display.</summary>
     public string CodepointHex => $"U+{Codepoint:X4}";
 
     /// <summary>Escape sequence for clipboard export.</summary>
-    public string CodepointEscape => $"\\u{Codepoint:X4}";
+    public string CodepointEscape => Codepoint <= 0xFFFF
+        ? $"\\u{Codepoint:X4}"
+        : $"\\U{Codepoint:X8}";
 
     public bool IsFavorite => IsInDefaultCollection;
 

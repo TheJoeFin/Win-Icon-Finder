@@ -15,7 +15,9 @@ public partial class MainViewModel : ObservableObject
     private readonly IconCollectionsService _collectionsService = new();
     private readonly CollectionExportService _collectionExportService = new();
     private readonly AppSettingsService _appSettingsService = new();
+    private readonly FontSourceService _fontSourceService = new();
     private readonly List<FluentIcon> _selectedCollectionIcons = [];
+    private bool _collectionsLoaded;
 
     private Dictionary<string, FluentIcon> _iconsByName = new(StringComparer.OrdinalIgnoreCase);
 
@@ -76,6 +78,19 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public partial string MapStatusText { get; set; } = "Click any icon to explore its visual neighborhood";
 
+    [ObservableProperty]
+    public partial string ActiveFontName { get; set; } = "Fluent System Icons";
+
+    [ObservableProperty]
+    public partial string ActiveFontUri { get; set; } = FontSourceService.DefaultFontUri;
+
+    [ObservableProperty]
+    public partial Microsoft.UI.Xaml.Media.FontFamily ActiveFontFamily { get; set; } =
+        new(FontSourceService.DefaultFontUri);
+
+    [ObservableProperty]
+    public partial bool IsCustomFont { get; set; }
+
     public bool HasSelectedCollectionIcons => SelectedCollectionIconCount > 0;
 
     public IReadOnlyList<FluentIcon> SelectedCollectionIcons => _selectedCollectionIcons;
@@ -115,6 +130,8 @@ public partial class MainViewModel : ObservableObject
 
     public event Action<Microsoft.UI.Xaml.ElementTheme>? RequestThemeChange;
 
+    public event Action? FontSourceChanged;
+
     // -------------------------------------------------------------------------
     // Internal accessors (used by MainPage code-behind)
     // -------------------------------------------------------------------------
@@ -137,25 +154,59 @@ public partial class MainViewModel : ObservableObject
         IsBusy = true;
         try
         {
-            LoadingPhase = "Pre-rendering icons…";
-            await _iconsService.LoadAsync();
-            AllIcons = _iconsService.Icons;
-            _iconsByName = AllIcons.ToDictionary(icon => icon.Name, StringComparer.OrdinalIgnoreCase);
-            AssignShuffleRanks();
-
             await _collectionsService.LoadAsync();
-            SynchronizeCollectionState();
-
-            Progress<int> progress = new(p => InitProgress = p);
-            await _matchingService.InitializeAsync(AllIcons, progress);
-
-            _layoutService.Initialize(AllIcons);
-            ApplyFilter();
+            _collectionsLoaded = true;
+            FontSource source = await _fontSourceService.GetActiveSourceAsync();
+            await ActivateFontSourceAsync(source);
         }
         finally
         {
             IsBusy = false;
         }
+    }
+
+    public async Task SetCustomFontAsync(Windows.Storage.StorageFile file)
+    {
+        FontSource source = await _fontSourceService.SetCustomFontAsync(file);
+        await ActivateFontSourceAsync(source);
+        StatusText = $"Using {ActiveFontName} ({AllIcons.Count:N0} glyphs)";
+    }
+
+    public async Task UseBundledFontAsync()
+    {
+        await _fontSourceService.ClearCustomFontAsync();
+        await ActivateFontSourceAsync(await _fontSourceService.GetActiveSourceAsync());
+        StatusText = "Using Fluent System Icons";
+    }
+
+    private async Task ActivateFontSourceAsync(FontSource source)
+    {
+        LoadingPhase = source.IsCustom ? "Processing font glyphs…" : "Pre-rendering icons…";
+        InitProgress = 0;
+        await _iconsService.LoadAsync(source);
+        AllIcons = _iconsService.Icons;
+        _iconsByName = AllIcons.ToDictionary(icon => icon.Name, StringComparer.OrdinalIgnoreCase);
+        AssignShuffleRanks();
+
+        ActiveFontName = source.DisplayName;
+        ActiveFontUri = source.FontUri;
+        ActiveFontFamily = new Microsoft.UI.Xaml.Media.FontFamily(source.FontUri);
+        IsCustomFont = source.IsCustom;
+
+        if (_collectionsLoaded)
+        {
+            SynchronizeCollectionState();
+        }
+
+        Progress<int> progress = new(p => InitProgress = p);
+        await _matchingService.InitializeAsync(AllIcons, source, progress);
+
+        _layoutService.Initialize(AllIcons);
+        SelectedIcon = null;
+        MapPivotIcon = null;
+        MapStatusText = "Click any icon to explore its visual neighborhood";
+        ApplyFilter();
+        FontSourceChanged?.Invoke();
     }
 
     // -------------------------------------------------------------------------
@@ -333,7 +384,7 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
-        _clipboardService.CopyXamlFontIcons(_selectedCollectionIcons);
+        _clipboardService.CopyXamlFontIcons(_selectedCollectionIcons, _matchingService.FontUri);
         StatusText = $"Copied {SelectedCollectionIconCount} XAML snippet{(SelectedCollectionIconCount == 1 ? "" : "s")}";
     }
 
@@ -530,7 +581,7 @@ public partial class MainViewModel : ObservableObject
     {
         if (SelectedIcon is not null)
         {
-            _clipboardService.CopyXamlFontIcon(SelectedIcon);
+            _clipboardService.CopyXamlFontIcon(SelectedIcon, _matchingService.FontUri);
         }
     }
 
