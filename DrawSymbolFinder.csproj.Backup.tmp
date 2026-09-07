@@ -3,7 +3,7 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
-    <RootNamespace>WinIconFinder</RootNamespace>
+    <RootNamespace>DrawSymbolFinder</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Platforms>x86;x64;ARM64</Platforms>
     <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-$([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture.ToString().ToLowerInvariant())</RuntimeIdentifier>
@@ -90,34 +90,34 @@
     <PRIResource Remove="obj\**" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Remove="D:\source\win-icon-finder\obj\Debug\net10.0-windows10.0.26100.0\win-arm64\XamlTypeInfo.g.cs" />
+    <Compile Remove="D:\source\draw-symbol-finder\obj\Debug\net10.0-windows10.0.26100.0\win-arm64\XamlTypeInfo.g.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Remove="D:\source\win-icon-finder\obj\Debug\net10.0-windows10.0.26100.0\win-arm64\WinIconFinder.GlobalUsings.g.cs" />
+    <Compile Remove="D:\source\draw-symbol-finder\obj\Debug\net10.0-windows10.0.26100.0\win-arm64\DrawSymbolFinder.GlobalUsings.g.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Remove="D:\source\win-icon-finder\obj\Debug\net10.0-windows10.0.26100.0\win-arm64\WinIconFinder.AssemblyInfo.cs" />
+    <Compile Remove="D:\source\draw-symbol-finder\obj\Debug\net10.0-windows10.0.26100.0\win-arm64\DrawSymbolFinder.AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Remove="D:\source\win-icon-finder\obj\Debug\net10.0-windows10.0.26100.0\win-arm64\MainWindow.g.i.cs" />
+    <Compile Remove="D:\source\draw-symbol-finder\obj\Debug\net10.0-windows10.0.26100.0\win-arm64\MainWindow.g.i.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Remove="D:\source\win-icon-finder\obj\Debug\net10.0-windows10.0.26100.0\win-arm64\MainWindow.g.cs" />
+    <Compile Remove="D:\source\draw-symbol-finder\obj\Debug\net10.0-windows10.0.26100.0\win-arm64\MainWindow.g.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Remove="D:\source\win-icon-finder\obj\Debug\net10.0-windows10.0.26100.0\win-arm64\MainPage.g.i.cs" />
+    <Compile Remove="D:\source\draw-symbol-finder\obj\Debug\net10.0-windows10.0.26100.0\win-arm64\MainPage.g.i.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Remove="D:\source\win-icon-finder\obj\Debug\net10.0-windows10.0.26100.0\win-arm64\MainPage.g.cs" />
+    <Compile Remove="D:\source\draw-symbol-finder\obj\Debug\net10.0-windows10.0.26100.0\win-arm64\MainPage.g.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Remove="D:\source\win-icon-finder\obj\Debug\net10.0-windows10.0.26100.0\win-arm64\App.g.i.cs" />
+    <Compile Remove="D:\source\draw-symbol-finder\obj\Debug\net10.0-windows10.0.26100.0\win-arm64\App.g.i.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Remove="D:\source\win-icon-finder\obj\Debug\net10.0-windows10.0.26100.0\win-arm64\App.g.cs" />
+    <Compile Remove="D:\source\draw-symbol-finder\obj\Debug\net10.0-windows10.0.26100.0\win-arm64\App.g.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Remove="D:\source\win-icon-finder\obj\Debug\net10.0-windows10.0.26100.0\win-arm64\.NETCoreApp,Version=v10.0.AssemblyAttributes.cs" />
+    <Compile Remove="D:\source\draw-symbol-finder\obj\Debug\net10.0-windows10.0.26100.0\win-arm64\.NETCoreApp,Version=v10.0.AssemblyAttributes.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="C:\Users\josep\.nuget\packages\microsoft.windowsappsdk.runtime\2.1.3\buildTransitive\..\include\WindowsAppSDK-VersionInfo.cs" />

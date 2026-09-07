@@ -1,4 +1,4 @@
-namespace WinIconFinder.Models;
+namespace DrawSymbolFinder.Models;
 
 public sealed class IconCollectionRecord
 {

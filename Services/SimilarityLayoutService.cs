@@ -1,6 +1,6 @@
-using WinIconFinder.Models;
+using DrawSymbolFinder.Models;
 
-namespace WinIconFinder.Services;
+namespace DrawSymbolFinder.Services;
 
 /// <summary>
 /// Arranges icons in a 2-D spiral grid sorted by cosine similarity to a chosen

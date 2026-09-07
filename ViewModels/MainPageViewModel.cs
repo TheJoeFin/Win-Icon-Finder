@@ -1,10 +1,10 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
-using WinIconFinder.Models;
-using WinIconFinder.Services;
+using DrawSymbolFinder.Models;
+using DrawSymbolFinder.Services;
 
-namespace WinIconFinder.ViewModels;
+namespace DrawSymbolFinder.ViewModels;
 
 public partial class MainViewModel : ObservableObject
 {

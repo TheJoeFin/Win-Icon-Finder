@@ -1,9 +1,9 @@
 using System.Globalization;
 using System.Text.Json;
 using Windows.Storage;
-using WinIconFinder.Models;
+using DrawSymbolFinder.Models;
 
-namespace WinIconFinder.Services;
+namespace DrawSymbolFinder.Services;
 
 /// <summary>
 /// Loads Fluent System Icons metadata from the bundled icons.json asset.

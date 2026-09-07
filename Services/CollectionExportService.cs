@@ -1,7 +1,7 @@
 using System.Text;
-using WinIconFinder.Models;
+using DrawSymbolFinder.Models;
 
-namespace WinIconFinder.Services;
+namespace DrawSymbolFinder.Services;
 
 public sealed class CollectionExportService
 {

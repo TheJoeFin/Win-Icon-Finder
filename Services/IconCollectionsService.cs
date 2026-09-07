@@ -1,7 +1,7 @@
 using System.Text.Json;
-using WinIconFinder.Models;
+using DrawSymbolFinder.Models;
 
-namespace WinIconFinder.Services;
+namespace DrawSymbolFinder.Services;
 
 public sealed class IconCollectionsService
 {

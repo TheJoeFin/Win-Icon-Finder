@@ -1,7 +1,7 @@
 using Microsoft.UI.Xaml;
 using Windows.Storage;
 
-namespace WinIconFinder.Services;
+namespace DrawSymbolFinder.Services;
 
 public sealed class AppSettingsService
 {

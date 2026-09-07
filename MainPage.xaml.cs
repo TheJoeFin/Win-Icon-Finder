@@ -13,13 +13,13 @@ using Windows.Storage.Pickers;
 using Windows.Storage.Streams;
 using Windows.UI;
 using Windows.UI.Core;
-using WinIconFinder.Controls;
-using WinIconFinder.Models;
-using WinIconFinder.Services;
-using WinIconFinder.ViewModels;
+using DrawSymbolFinder.Controls;
+using DrawSymbolFinder.Models;
+using DrawSymbolFinder.Services;
+using DrawSymbolFinder.ViewModels;
 using WinRT.Interop;
 
-namespace WinIconFinder;
+namespace DrawSymbolFinder;
 
 public sealed partial class MainPage : Page
 {

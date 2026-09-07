@@ -1,4 +1,4 @@
-# Copilot Instructions for WinIconFinder
+# Copilot Instructions for Draw Symbol Finder
 
 ## Build & Run
 
@@ -13,7 +13,7 @@
 .\BuildAndRun.ps1 /p:Configuration=Release -SkipRun
 
 # Direct dotnet build
-dotnet build WinIconFinder.csproj -p:Platform=x64
+dotnet build DrawSymbolFinder.csproj -p:Platform=x64
 ```
 
 **Prerequisite:** Developer Mode must be enabled (`Settings → System → For developers → Developer Mode`). The `BuildAndRun.ps1` script checks this automatically.

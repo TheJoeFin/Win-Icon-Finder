@@ -1,6 +1,6 @@
 using Microsoft.UI.Xaml.Controls;
 
-namespace WinIconFinder.Controls;
+namespace DrawSymbolFinder.Controls;
 
 /// <summary>
 /// Toolbar and menu glyph for the "copy as XAML PathIcon" actions.

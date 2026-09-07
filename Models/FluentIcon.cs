@@ -1,6 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 
-namespace WinIconFinder.Models;
+namespace DrawSymbolFinder.Models;
 
 public partial class FluentIcon : ObservableObject
 {

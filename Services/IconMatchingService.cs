@@ -8,9 +8,9 @@ using System.Runtime.InteropServices;
 using System.Text;
 using Windows.Foundation;
 using Windows.Storage.Streams;
-using WinIconFinder.Models;
+using DrawSymbolFinder.Models;
 
-namespace WinIconFinder.Services;
+namespace DrawSymbolFinder.Services;
 
 /// <summary>
 /// Core matching engine: pre-renders all ~1600 Fluent icons to 64×64 bitmaps,

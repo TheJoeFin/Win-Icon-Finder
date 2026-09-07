@@ -1,10 +1,10 @@
 using Microsoft.UI.Xaml;
-using WinIconFinder.Services;
+using DrawSymbolFinder.Services;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
 
-namespace WinIconFinder;
+namespace DrawSymbolFinder;
 
 /// <summary>
 /// The application window. This hosts a Frame that displays pages. Add your

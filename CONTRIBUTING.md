@@ -1,4 +1,4 @@
-# Contributing to WinIconFinder
+# Contributing to Draw Symbol Finder
 
 Thank you for your interest in contributing! Here's everything you need to get up and running.
 
@@ -15,8 +15,8 @@ Thank you for your interest in contributing! Here's everything you need to get u
 ## Getting started
 
 ```powershell
-git clone https://github.com/<your-username>/win-icon-finder.git
-cd win-icon-finder
+git clone https://github.com/<your-username>/draw-symbol-finder.git
+cd draw-symbol-finder
 .\BuildAndRun.ps1
 ```
 

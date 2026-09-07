@@ -1,8 +1,8 @@
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage.Streams;
-using WinIconFinder.Models;
+using DrawSymbolFinder.Models;
 
-namespace WinIconFinder.Services;
+namespace DrawSymbolFinder.Services;
 
 public partial class ClipboardExportService
 {

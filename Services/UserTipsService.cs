@@ -1,6 +1,6 @@
 using Windows.Storage;
 
-namespace WinIconFinder.Services;
+namespace DrawSymbolFinder.Services;
 
 /// <summary>
 /// Tracks one-time informational tips so each is shown only on its first

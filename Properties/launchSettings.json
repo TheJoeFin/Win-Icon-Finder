@@ -1,9 +1,9 @@
 {
   "profiles": {
-    "WinIconFinder (Package)": {
+    "DrawSymbolFinder (Package)": {
       "commandName": "MsixPackage"
     },
-    "WinIconFinder (Unpackaged)": {
+    "DrawSymbolFinder (Unpackaged)": {
       "commandName": "Project"
     }
   }

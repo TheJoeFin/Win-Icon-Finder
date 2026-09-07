@@ -2,7 +2,7 @@ using System.Text;
 using Windows.Security.Cryptography;
 using Windows.Storage;
 
-namespace WinIconFinder.Services;
+namespace DrawSymbolFinder.Services;
 
 public sealed record FontSource(
     string DisplayName,

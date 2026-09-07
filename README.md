@@ -1,16 +1,16 @@
-# WinIconFinder
+# Draw Symbol Finder
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A WinUI 3 desktop application for browsing, sketching, and exporting the full [Fluent System Icons](https://github.com/microsoft/fluentui-system-icons) library (~1,600 icons). Find the right icon by name **or** by drawing it freehand — then copy it straight into your project.
+A WinUI 3 desktop application for browsing, sketching, and exporting the full
 
 ---
 
 
-![Drawing to find icon](readme-images/Fluent-Icon-Finder-01.png)
+![Drawing to find icon](readme-images/Draw-Symbol-Finder-01.png)
 
 
-![Similarity Map](readme-images/Fluent-Icon-Finder-02.png)
+![Similarity Map](readme-images/Draw-Symbol-Finder-02.png)
 
 
 ## Features
@@ -115,7 +115,7 @@ SVG export uses `CanvasGeometry.CreateText` + `ICanvasPathReceiver` to extract r
 ## Architecture
 
 ```
-WinIconFinder/
+DrawSymbolFinder/
 ├── Models/
 │   ├── FluentIcon.cs              # Icon data model (name, codepoint, match + collection state)
 │   ├── IconCollection.cs          # UI-facing collection summary model
@@ -179,12 +179,12 @@ The script:
 
 ### Option 2 — Visual Studio
 
-Open `WinIconFinder.slnx`, select your target platform (x64 / ARM64), and press **F5**.
+Open `DrawSymbolFinder.slnx`, select your target platform (x64 / ARM64), and press **F5**.
 
 ### Option 3 — dotnet CLI
 
 ```powershell
-dotnet build WinIconFinder.csproj -p:Platform=x64
+dotnet build DrawSymbolFinder.csproj -p:Platform=x64
 winapp run bin\x64\Debug\net10.0-windows10.0.26100.0\win-x64\
 ```
 
