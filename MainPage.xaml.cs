@@ -65,9 +65,17 @@ public sealed partial class MainPage : Page
     public MainPage()
     {
         InitializeComponent();
+        ApplyTheme(AppSettingsService.ToElementTheme(ViewModel.ThemePreference));
         NavView.SelectedItem = SearchModeNavItem;
 
         ConfigureInkCanvas();
+        ActualThemeChanged += (_, _) =>
+        {
+            UpdateInkDrawingAttributes();
+            MapCanvas.Invalidate();
+        };
+
+        ViewModel.RequestThemeChange += ApplyTheme;
 
         _debounceTimer.Tick += async (_, _) =>
         {
@@ -497,11 +505,20 @@ public sealed partial class MainPage : Page
 
     private void NavView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs e)
     {
-        if (ReferenceEquals(e.SelectedItem, SimilarityMapNavItem))
+        if (ReferenceEquals(e.SelectedItem, SettingsNavItem))
+        {
+            SearchModePanel.Visibility = Visibility.Collapsed;
+            SimilarityMapPanel.Visibility = Visibility.Collapsed;
+            CollectionsPanel.Visibility = Visibility.Collapsed;
+            SettingsPanel.Visibility = Visibility.Visible;
+            ViewModel.IsMapMode = false;
+        }
+        else if (ReferenceEquals(e.SelectedItem, SimilarityMapNavItem))
         {
             SearchModePanel.Visibility = Visibility.Collapsed;
             SimilarityMapPanel.Visibility = Visibility.Visible;
             CollectionsPanel.Visibility = Visibility.Collapsed;
+            SettingsPanel.Visibility = Visibility.Collapsed;
             ViewModel.IsMapMode = true;
 
             ApplyInitialMapScale();
@@ -522,6 +539,7 @@ public sealed partial class MainPage : Page
             SearchModePanel.Visibility = Visibility.Collapsed;
             SimilarityMapPanel.Visibility = Visibility.Collapsed;
             CollectionsPanel.Visibility = Visibility.Visible;
+            SettingsPanel.Visibility = Visibility.Collapsed;
             ViewModel.IsMapMode = false;
         }
         else
@@ -529,8 +547,22 @@ public sealed partial class MainPage : Page
             SearchModePanel.Visibility = Visibility.Visible;
             SimilarityMapPanel.Visibility = Visibility.Collapsed;
             CollectionsPanel.Visibility = Visibility.Collapsed;
+            SettingsPanel.Visibility = Visibility.Collapsed;
             ViewModel.IsMapMode = false;
         }
+    }
+
+    private void ApplyTheme(ElementTheme theme)
+    {
+        RequestedTheme = theme;
+
+        if (App.Window is MainWindow mainWindow)
+        {
+            mainWindow.ApplyTheme(theme);
+        }
+
+        UpdateInkDrawingAttributes();
+        MapCanvas.Invalidate();
     }
 
     private async void FavoriteIcon_Click(object sender, RoutedEventArgs e)

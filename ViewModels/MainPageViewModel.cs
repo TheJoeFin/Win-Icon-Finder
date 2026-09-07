@@ -14,6 +14,7 @@ public partial class MainViewModel : ObservableObject
     private readonly SimilarityLayoutService _layoutService = new();
     private readonly IconCollectionsService _collectionsService = new();
     private readonly CollectionExportService _collectionExportService = new();
+    private readonly AppSettingsService _appSettingsService = new();
     private readonly List<FluentIcon> _selectedCollectionIcons = [];
 
     private Dictionary<string, FluentIcon> _iconsByName = new(StringComparer.OrdinalIgnoreCase);
@@ -61,6 +62,9 @@ public partial class MainViewModel : ObservableObject
     public partial bool TryMatchMirrors { get; set; } = false;
 
     [ObservableProperty]
+    public partial int ThemePreference { get; set; }
+
+    [ObservableProperty]
     public partial string LoadingPhase { get; set; } = "Pre-rendering icons…";
 
     [ObservableProperty]
@@ -77,6 +81,12 @@ public partial class MainViewModel : ObservableObject
     public IReadOnlyList<FluentIcon> SelectedCollectionIcons => _selectedCollectionIcons;
 
     partial void OnTryMatchMirrorsChanged(bool value) => RequestResearch?.Invoke();
+
+    partial void OnThemePreferenceChanged(int value)
+    {
+        _appSettingsService.ThemePreference = value;
+        RequestThemeChange?.Invoke(AppSettingsService.ToElementTheme(value));
+    }
 
     partial void OnIsMapModeChanged(bool value) => MapModeChanged?.Invoke(value);
 
@@ -103,6 +113,8 @@ public partial class MainViewModel : ObservableObject
 
     public event Action<bool>? MapModeChanged;
 
+    public event Action<Microsoft.UI.Xaml.ElementTheme>? RequestThemeChange;
+
     // -------------------------------------------------------------------------
     // Internal accessors (used by MainPage code-behind)
     // -------------------------------------------------------------------------
@@ -114,6 +126,11 @@ public partial class MainViewModel : ObservableObject
     // -------------------------------------------------------------------------
     // Initialisation
     // -------------------------------------------------------------------------
+
+    public MainViewModel()
+    {
+        ThemePreference = _appSettingsService.ThemePreference;
+    }
 
     public async Task InitializeAsync()
     {

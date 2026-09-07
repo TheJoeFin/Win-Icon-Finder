@@ -88,6 +88,17 @@
             </NavigationViewItem>
         </NavigationView.MenuItems>
 
+        <NavigationView.FooterMenuItems>
+            <NavigationViewItem
+                x:Name="SettingsNavItem"
+                Content="Settings"
+                ToolTipService.ToolTip="Change app preferences">
+                <NavigationViewItem.Icon>
+                    <FontIcon FontFamily="{ThemeResource SymbolThemeFontFamily}" Glyph="&#xE713;" />
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+        </NavigationView.FooterMenuItems>
+
         <Grid>
 
             <!--
@@ -990,6 +1001,35 @@
                     </Grid>
                 </Grid>
             </Grid>
+
+            <ScrollViewer x:Name="SettingsPanel" Visibility="Collapsed">
+                <StackPanel
+                    MaxWidth="720"
+                    Margin="24"
+                    Spacing="20">
+                    <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="Settings" />
+                    <TextBlock
+                        Opacity="0.7"
+                        Style="{StaticResource BodyTextBlockStyle}"
+                        Text="Customize how Fluent Icon Finder looks on this device." />
+
+                    <StackPanel Spacing="8">
+                        <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="Appearance" />
+                        <TextBlock
+                            Opacity="0.7"
+                            Style="{StaticResource BodyTextBlockStyle}"
+                            Text="Choose whether the app follows Windows or uses a specific theme." />
+                        <RadioButtons
+                            AutomationProperties.AutomationId="ThemePreferenceRadioButtons"
+                            AutomationProperties.Name="Appearance preference"
+                            SelectedIndex="{x:Bind ViewModel.ThemePreference, Mode=TwoWay}">
+                            <x:String>Use system setting</x:String>
+                            <x:String>Light</x:String>
+                            <x:String>Dark</x:String>
+                        </RadioButtons>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
 
         </Grid>
     </NavigationView>

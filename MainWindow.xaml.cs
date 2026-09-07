@@ -1,4 +1,5 @@
 using Microsoft.UI.Xaml;
+using WinIconFinder.Services;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -12,9 +13,12 @@ namespace WinIconFinder;
 /// </summary>
 public sealed partial class MainWindow : Window
 {
+    private readonly AppSettingsService _appSettingsService = new();
+
     public MainWindow()
     {
         InitializeComponent();
+        ApplyTheme(AppSettingsService.ToElementTheme(_appSettingsService.ThemePreference));
 
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
@@ -23,5 +27,10 @@ public sealed partial class MainWindow : Window
 
         // Navigate the root frame to the main page on startup.
         RootFrame.Navigate(typeof(MainPage));
+    }
+
+    public void ApplyTheme(ElementTheme theme)
+    {
+        WindowRoot.RequestedTheme = theme;
     }
 }
