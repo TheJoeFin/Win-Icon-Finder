@@ -106,6 +106,7 @@ public sealed partial class MainPage : Page
                 MatchingIconOverlay.Visibility = ViewModel.SelectedIcon is null
                     ? Visibility.Collapsed
                     : Visibility.Visible;
+                Bindings.Update();
             }
             // Refresh map as soon as loading finishes (avoids "not ready" guard hit)
             if (e.PropertyName == nameof(ViewModel.IsBusy) && !ViewModel.IsBusy)
@@ -151,7 +152,7 @@ public sealed partial class MainPage : Page
         {
             System.Numerics.Matrix3x2 scale = System.Numerics.Matrix3x2.CreateScale((float)(side / _canvasSize));
             foreach (Windows.UI.Input.Inking.InkStroke stroke in DrawingCanvas.InkPresenter.StrokeContainer.GetStrokes())
-                stroke.PointTransform = stroke.PointTransform * scale;
+                stroke.PointTransform *= scale;
         }
 
         _canvasSize = side;
@@ -163,8 +164,8 @@ public sealed partial class MainPage : Page
     }
 
     private void DrawingCanvas_StrokesCollected(
-        Microsoft.UI.Xaml.Controls.InkPresenter sender,
-        Microsoft.UI.Xaml.Controls.InkStrokesCollectedEventArgs args)
+        InkPresenter sender,
+        InkStrokesCollectedEventArgs args)
     {
         EmptyStateText.Visibility = Visibility.Collapsed;
         _debounceTimer.Stop();
@@ -257,7 +258,7 @@ public sealed partial class MainPage : Page
             MathF.PI / 2,
             new System.Numerics.Vector2((float)_canvasSize / 2, (float)_canvasSize / 2));
         foreach (Windows.UI.Input.Inking.InkStroke stroke in strokes)
-            stroke.PointTransform = stroke.PointTransform * rotation;
+            stroke.PointTransform *= rotation;
 
         _debounceTimer.Stop();
         _debounceTimer.Start();
@@ -979,6 +980,13 @@ public sealed partial class MainPage : Page
             XamlRoot = XamlRoot
         };
 
+        DrawingCanvas.Visibility = Visibility.Collapsed;
+
+        dialog.Closed += (s, e) =>
+        {
+            DrawingCanvas.Visibility = Visibility.Visible;
+        };
+
         await dialog.ShowAsync();
     }
 
@@ -1085,6 +1093,13 @@ public sealed partial class MainPage : Page
             XamlRoot = XamlRoot
         };
 
+        DrawingCanvas.Visibility = Visibility.Collapsed;
+
+        dialog.Closed += (s, e) =>
+        {
+            DrawingCanvas.Visibility = Visibility.Visible;
+        };
+
         await dialog.ShowAsync();
     }
 
@@ -1104,6 +1119,13 @@ public sealed partial class MainPage : Page
             CloseButtonText = "Cancel",
             DefaultButton = ContentDialogButton.Primary,
             XamlRoot = XamlRoot
+        };
+
+        DrawingCanvas.Visibility = Visibility.Collapsed;
+
+        dialog.Closed += (s, e) =>
+        {
+            DrawingCanvas.Visibility = Visibility.Visible;
         };
 
         ContentDialogResult result = await dialog.ShowAsync();
@@ -1193,19 +1215,33 @@ public sealed partial class MainPage : Page
             XamlRoot = XamlRoot
         };
 
+        DrawingCanvas.Visibility = Visibility.Collapsed;
+
+        dialog.Closed += (s, e) =>
+        {
+            DrawingCanvas.Visibility = Visibility.Visible;
+        };
+
         await dialog.ShowAsync();
+    }
+
+    private void ClearSelectedIcon_Click(object sender, RoutedEventArgs e)
+    {
+        ViewModel.SelectedIcon = null;
     }
 
     private void ExploreInMap_Click(object sender, RoutedEventArgs e)
     {
         FluentIcon? icon = GetActionIcon(sender) ?? ViewModel.SelectedIcon;
-        if (icon == null || !TryGetLayoutPositionIndex(icon, out int positionIndex)) return;
+        if (icon == null || !TryGetLayoutPositionIndex(icon, out _)) return;
 
         ViewModel.SelectedIcon = icon;
 
-        // Switch to map mode and set pivot.
+        // Switching tabs fires NavView_SelectionChanged, which pivots the map to
+        // ViewModel.SelectedIcon itself — don't also pivot here. Positions gets
+        // re-sorted around the new pivot inside that handler, so a positionIndex
+        // captured before the switch would be stale by the time it's used.
         NavView.SelectedItem = SimilarityMapNavItem;
-        SetMapPivot(positionIndex);
     }
 
     private bool TryGetLayoutPositionIndex(FluentIcon icon, out int positionIndex)
@@ -1466,7 +1502,7 @@ public sealed partial class MainPage : Page
         if (_mapActivePointers.Count >= 2)
         {
             // Second finger down — enter pinch mode, record start state
-            Point[] pts = _mapActivePointers.Values.ToArray();
+            Point[] pts = [.. _mapActivePointers.Values];
             _mapPinchStartDist = MapPtrDistance(pts[0], pts[1]);
             _mapPinchStartMid = MapPtrMidpoint(pts[0], pts[1]);
             _mapPinchStartScale = _mapScale;
@@ -1502,7 +1538,7 @@ public sealed partial class MainPage : Page
             // Two-finger pinch: zoom around midpoint + allow midpoint translation
             if (_mapPinchStartDist > 0)
             {
-                Point[] pts = _mapActivePointers.Values.ToArray();
+                Point[] pts = [.. _mapActivePointers.Values];
                 double dist = MapPtrDistance(pts[0], pts[1]);
                 Point mid = MapPtrMidpoint(pts[0], pts[1]);
 

@@ -118,6 +118,7 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
@@ -138,10 +139,70 @@
                         Style="{StaticResource CaptionTextBlockStyle}"
                         Text="{x:Bind local:MainPage.FormatCount(ViewModel.FilteredIcons.Count), Mode=OneWay}" />
 
+                    <!--
+                        Pinned "currently selected" card — the icon behind the drawing
+                        canvas. Broken out of the list so it stays visible no matter how
+                        selection happened (list click, ink match, or map pivot) or what
+                        the search box is currently filtered to.
+                    -->
+                    <Border
+                        x:Name="SelectedIconCard"
+                        Grid.Row="2"
+                        Margin="8,0,8,8"
+                        Padding="8"
+                        BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="{ThemeResource ControlCornerRadius}"
+                        Visibility="{x:Bind local:MainPage.HasSelectedIcon(ViewModel.SelectedIcon), Mode=OneWay}">
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="40" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <Border
+                                Grid.Column="0"
+                                Width="36"
+                                Height="36"
+                                Background="{ThemeResource ControlFillColorDefaultBrush}"
+                                CornerRadius="{ThemeResource ControlCornerRadius}">
+                                <TextBlock
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontFamily="{x:Bind ViewModel.SelectedIcon.FontFamily, Mode=OneWay}"
+                                    FontSize="22"
+                                    Text="{x:Bind ViewModel.SelectedIcon.GlyphString, Mode=OneWay}" />
+                            </Border>
+
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock
+                                    Style="{StaticResource BodyStrongTextBlockStyle}"
+                                    Text="{x:Bind ViewModel.SelectedIcon.DisplayName, Mode=OneWay}"
+                                    TextTrimming="CharacterEllipsis" />
+                                <TextBlock
+                                    Opacity="0.6"
+                                    Style="{StaticResource CaptionTextBlockStyle}"
+                                    Text="Shown behind the canvas" />
+                            </StackPanel>
+
+                            <Button
+                                Grid.Column="2"
+                                VerticalAlignment="Center"
+                                AutomationProperties.AutomationId="ClearSelectedIconButton"
+                                AutomationProperties.Name="Clear selected icon"
+                                Click="ClearSelectedIcon_Click"
+                                Content="&#xE711;"
+                                FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                Style="{StaticResource CanvasToolbarIconButtonStyle}"
+                                ToolTipService.ToolTip="Clear selection" />
+                        </Grid>
+                    </Border>
+
                     <!--  Icon list  -->
                     <ListView
                         x:Name="IconListView"
-                        Grid.Row="2"
+                        Grid.Row="3"
                         AutomationProperties.AutomationId="IconListView"
                         ItemsSource="{x:Bind ViewModel.FilteredIcons, Mode=OneWay}"
                         SelectedItem="{x:Bind ViewModel.SelectedIcon, Mode=TwoWay}"
