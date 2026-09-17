@@ -37,6 +37,19 @@ public partial class App : Application
     public App()
     {
         InitializeComponent();
+        UnhandledException += (_, e) => LogCrash("XAML", e.Exception);
+        AppDomain.CurrentDomain.UnhandledException += (_, e) => LogCrash("AppDomain", e.ExceptionObject as Exception);
+        TaskScheduler.UnobservedTaskException += (_, e) => LogCrash("Task", e.Exception);
+    }
+
+    private static void LogCrash(string source, Exception? ex)
+    {
+        try
+        {
+            string path = Path.Combine(Windows.Storage.ApplicationData.Current.LocalFolder.Path, "crash.log");
+            File.AppendAllText(path, $"[{DateTime.Now:O}] {source}{Environment.NewLine}{ex}{Environment.NewLine}{Environment.NewLine}");
+        }
+        catch { }
     }
 
     /// <summary>

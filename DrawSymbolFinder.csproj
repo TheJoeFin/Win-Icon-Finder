@@ -14,6 +14,10 @@
     <EnableMsixTooling>true</EnableMsixTooling>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- Required by the CsWinRT AOT/trimming source generator (CsWinRT1030) so generic
+         collections such as ObservableCollection<T> get generated vtables instead of the
+         reflection fallback, which is trimmed away in Release (PublishTrimmed) builds. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="obj\**" />
