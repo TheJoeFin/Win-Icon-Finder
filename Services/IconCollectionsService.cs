@@ -9,11 +9,6 @@ public sealed class IconCollectionsService
 
     private const string StoreFileName = "icon-collections.json";
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        WriteIndented = true
-    };
-
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly Dictionary<string, HashSet<string>> _collections = new(StringComparer.OrdinalIgnoreCase);
     private bool _loaded;
@@ -33,7 +28,7 @@ public sealed class IconCollectionsService
             if (File.Exists(StorePath))
             {
                 string json = await File.ReadAllTextAsync(StorePath);
-                IconCollectionsStore? store = JsonSerializer.Deserialize<IconCollectionsStore>(json, JsonOptions);
+                IconCollectionsStore? store = JsonSerializer.Deserialize(json, AppJsonContext.Default.IconCollectionsStore);
                 if (store is null)
                 {
                     throw new InvalidOperationException("Failed to parse the collections store.");
@@ -227,7 +222,7 @@ public sealed class IconCollectionsService
             Collections = GetCollections().ToList()
         };
 
-        string json = JsonSerializer.Serialize(store, JsonOptions);
+        string json = JsonSerializer.Serialize(store, AppJsonContext.Default.IconCollectionsStore);
         string tempPath = StorePath + ".tmp";
 
         await File.WriteAllTextAsync(tempPath, json);

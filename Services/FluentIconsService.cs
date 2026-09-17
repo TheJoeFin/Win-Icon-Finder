@@ -39,7 +39,7 @@ public partial class FluentIconsService
         string json = await Windows.Storage.FileIO.ReadTextAsync(file);
 
         // Parse the flat dict: key = "ic_fluent_name_size_regular", value = decimal codepoint
-        Dictionary<string, int> dict = JsonSerializer.Deserialize<Dictionary<string, int>>(json)
+        Dictionary<string, int> dict = JsonSerializer.Deserialize(json, AppJsonContext.Default.DictionaryStringInt32)
                    ?? throw new InvalidOperationException("Failed to parse icons.json");
 
         // Group by base name (without size), then pick the variant closest to 24px.
